@@ -1,4 +1,13 @@
-from aws_cdk import BundlingOptions, CfnOutput, Duration, RemovalPolicy
+import json
+
+from aws_cdk import (
+    BundlingOptions,
+    CfnOutput,
+    Duration,
+    Fn,
+    RemovalPolicy,
+    Stack,
+)
 from aws_cdk import (
     aws_ec2 as ec2,
 )
@@ -18,6 +27,9 @@ from aws_cdk import (
     aws_logs as logs,
 )
 from aws_cdk import (
+    aws_opensearchserverless as aws_opss,
+)
+from aws_cdk import (
     aws_s3 as s3,
 )
 from aws_cdk import (
@@ -34,14 +46,141 @@ class RagIngest(Construct):
         self,
         scope: Construct,
         construct_id: str,
-        index_name: str,
-        opensearch_endpoint: str,
+        opensearch_index_name: str,
+        opensearch_collection_name: str,
         embeddings_model_id: str,
         video_text_model_id: str,
         region: str,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        #################################################################################
+        # CDK FOR THE OPENSEARCH VECTOR DATABASE
+        #################################################################################
+        collection_name = opensearch_collection_name
+
+        network_security_policy = json.dumps(
+            [
+                {
+                    "Rules": [
+                        {
+                            "Resource": [f"collection/{collection_name}"],
+                            "ResourceType": "dashboard",
+                        },
+                        {
+                            "Resource": [f"collection/{collection_name}"],
+                            "ResourceType": "collection",
+                        },
+                    ],
+                    "AllowFromPublic": True,
+                }
+            ],
+            indent=2,
+        )
+
+        cfn_network_security_policy = aws_opss.CfnSecurityPolicy(
+            self,
+            "NetworkSecurityPolicy",
+            policy=network_security_policy,
+            name=f"{collection_name}-security-policy",
+            type="network",
+        )
+
+        encryption_security_policy = json.dumps(
+            {
+                "Rules": [
+                    {
+                        "Resource": [f"collection/{collection_name}"],
+                        "ResourceType": "collection",
+                    }
+                ],
+                "AWSOwnedKey": True,
+            },
+            indent=2,
+        )
+
+        cfn_encryption_security_policy = aws_opss.CfnSecurityPolicy(
+            self,
+            "EncryptionSecurityPolicy",
+            policy=encryption_security_policy,
+            name=f"{collection_name}-security-policy",
+            type="encryption",
+        )
+
+        cfn_collection = aws_opss.CfnCollection(
+            self,
+            collection_name,
+            name=collection_name,
+            description="Collection to be used for vector analysis using OpenSearch Serverless",
+            type="VECTORSEARCH",  # [SEARCH, TIMESERIES]
+        )
+        cfn_collection.add_dependency(cfn_network_security_policy)
+        cfn_collection.add_dependency(cfn_encryption_security_policy)
+
+        data_access_policy = json.dumps(
+            [
+                {
+                    "Rules": [
+                        {
+                            "Resource": [f"collection/{collection_name}"],
+                            "Permission": [
+                                "aoss:CreateCollectionItems",
+                                "aoss:DeleteCollectionItems",
+                                "aoss:UpdateCollectionItems",
+                                "aoss:DescribeCollectionItems",
+                            ],
+                            "ResourceType": "collection",
+                        },
+                        {
+                            "Resource": [f"index/{collection_name}/*"],
+                            "Permission": [
+                                "aoss:CreateIndex",
+                                "aoss:DeleteIndex",
+                                "aoss:UpdateIndex",
+                                "aoss:DescribeIndex",
+                                "aoss:ReadDocument",
+                                "aoss:WriteDocument",
+                            ],
+                            "ResourceType": "index",
+                        },
+                    ],
+                    "Principal": [
+                        f"arn:aws:iam::{Stack.of(self).account}:root"  # Grant access to the AWS account
+                    ],
+                    "Description": "data-access-rule",
+                }
+            ],
+            indent=2,
+        )
+
+        data_access_policy_name = f"{collection_name}-policy"
+        assert len(data_access_policy_name) <= 32
+
+        cfn_access_policy = aws_opss.CfnAccessPolicy(
+            self,
+            "OpssDataAccessPolicy",
+            name=data_access_policy_name,
+            description="Policy for data access",
+            policy=data_access_policy,
+            type="data",
+        )
+
+        # Removes https:// from Opensearch endpoint
+        opensearch_endpoint = Fn.select(
+            1, Fn.split("https://", cfn_collection.attr_collection_endpoint)
+        )
+
+        collection_arn = cfn_collection.attr_arn
+
+        # Define custom inline policy
+        opensearch_policy = iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=[
+                "aoss:APIAccessAll",
+            ],
+            resources=["*"],
+        )
 
         # Create VPC (required for ECS Fargate)
         vpc = ec2.Vpc(
@@ -119,8 +258,6 @@ class RagIngest(Construct):
                 "transcribe:StartTranscriptionJob",
                 "transcribe:GetTranscriptionJob",
                 "transcribe:DeleteTranscriptionJob",
-                "transcribe:TagResource",
-                "transcribe:ListTagsForResource",
             ],
             resources=["*"],
         )
@@ -182,7 +319,7 @@ class RagIngest(Construct):
             timeout=Duration.minutes(1),
             memory_size=128,
             environment={
-                "INDEX_NAME": index_name,
+                "INDEX_NAME": opensearch_index_name,
                 "OPENSEARCH_ENDPOINT": opensearch_endpoint,
                 "EMBEDDINGS_MODEL_ID": embeddings_model_id,
             },
@@ -200,7 +337,7 @@ class RagIngest(Construct):
             memory_size=2048,  # 2GB memory
             timeout=Duration.minutes(15),
             environment={
-                "INDEX_NAME": index_name,
+                "INDEX_NAME": opensearch_index_name,
                 "OPENSEARCH_ENDPOINT": opensearch_endpoint,
                 "EMBEDDINGS_MODEL_ID": embeddings_model_id,
             },
@@ -255,7 +392,7 @@ class RagIngest(Construct):
                 log_group=video_log_group,
             ),
             environment={
-                "INDEX_NAME": index_name,
+                "INDEX_NAME": opensearch_index_name,
                 "OPENSEARCH_ENDPOINT": opensearch_endpoint,
                 "EMBEDDINGS_MODEL_ID": embeddings_model_id,
                 "VIDEO_TEXT_MODEL_ID": video_text_model_id,
@@ -284,7 +421,7 @@ class RagIngest(Construct):
                 log_group=audio_log_group,
             ),
             environment={
-                "INDEX_NAME": index_name,
+                "INDEX_NAME": opensearch_index_name,
                 "OPENSEARCH_ENDPOINT": opensearch_endpoint,
                 "EMBEDDINGS_MODEL_ID": embeddings_model_id,
                 "AUDIO_TEXT_MODEL_ID": video_text_model_id,
@@ -331,13 +468,6 @@ class RagIngest(Construct):
                 "MediaFormat.$": "$.data_type",
                 "Media": {"MediaFileUri.$": "$.s3_uri"},
                 "Settings": {"ShowSpeakerLabels": True, "MaxSpeakerLabels": 5},
-                "Tags": [
-                    {"Key": "source-url", "Value.$": "$.metadata.source-url"},
-                    {
-                        "Key": "member-content",
-                        "Value.$": "$.metadata.member-content",
-                    },
-                ],
             },
             iam_resources=["*"],
         )
@@ -411,16 +541,6 @@ class RagIngest(Construct):
                 "MediaFormat.$": "$.data_type",
                 "Media": {"MediaFileUri.$": "$.s3_uri"},
                 "Settings": {"ShowSpeakerLabels": True, "MaxSpeakerLabels": 5},
-                "Tags": [
-                    {
-                        "Key": "source-url",
-                        "Value.$": "$.metadata['source-url']",
-                    },
-                    {
-                        "Key": "member-content",
-                        "Value.$": "$.metadata['member-content']",
-                    },
-                ],
             },
             iam_resources=["*"],
         )
@@ -586,9 +706,19 @@ class RagIngest(Construct):
         state_machine.add_to_role_policy(transcribe_policy)
 
         self.bucket_arn = input_assets_bucket.bucket_arn
+        self.opensearch_endpoint = opensearch_endpoint
+        self.collection_arn = collection_arn
+        self.step_function_arn = state_machine.state_machine_arn
 
         CfnOutput(
             self,
             "InputBucketName",
             value=input_assets_bucket.bucket_name,
+        )
+        
+        CfnOutput(
+            self,
+            "StepFunctionArn",
+            value=state_machine.state_machine_arn,
+            description="ARN of the Step Function for data ingestion",
         )
