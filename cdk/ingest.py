@@ -51,6 +51,7 @@ class RagIngest(Construct):
         embeddings_model_id: str,
         video_text_model_id: str,
         region: str,
+        max_concurrency: int,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -672,7 +673,7 @@ class RagIngest(Construct):
         map_state = sfn.Map(
             self,
             "Map",
-            max_concurrency=7,
+            max_concurrency=max_concurrency,
             input_path="$",
             items_path="$.routing_result.Payload",
         ).item_processor(choice)
@@ -715,7 +716,7 @@ class RagIngest(Construct):
             "InputBucketName",
             value=input_assets_bucket.bucket_name,
         )
-        
+
         CfnOutput(
             self,
             "StepFunctionArn",
