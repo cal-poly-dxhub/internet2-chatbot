@@ -1,0 +1,8 @@
+boto3==1.37.3
+botocore==1.37.3
+amazon_textract_textractor==1.7.11
+langchain-aws==0.2.6
+opensearch_py==2.6.0
+pdfplumber==0.11.0
+Requests==2.32.3
+requests_aws4auth==1.2.3
