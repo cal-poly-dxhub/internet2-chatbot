@@ -1,5 +1,6 @@
 # stacks/main_stack.py
 
+
 from aws_cdk import Stack
 from constructs import Construct
 
@@ -12,8 +13,6 @@ class RagChatbotStack(Stack):
         self,
         scope: Construct,
         construct_id: str,
-        index_name: str,
-        opensearch_endpoint: str,
         embeddings_model_id: str,
         video_text_model_id: str,
         opensearch_collection_name: str,
@@ -21,6 +20,7 @@ class RagChatbotStack(Stack):
         chat_model: str,
         embedding_model: str,
         chat_prompt: str,
+        config_path: str,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -28,8 +28,8 @@ class RagChatbotStack(Stack):
         ingest_stack = RagIngest(
             self,
             "RagIngest",
-            index_name=index_name,
-            opensearch_endpoint=opensearch_endpoint,
+            opensearch_index_name=opensearch_index_name,
+            opensearch_collection_name=opensearch_collection_name,
             embeddings_model_id=embeddings_model_id,
             video_text_model_id=video_text_model_id,
             region=self.region,
@@ -37,8 +37,9 @@ class RagChatbotStack(Stack):
         rag_api_stack = RagBackend(
             self,
             "RagBackend",
-            opensearch_collection_name=opensearch_collection_name,
+            opensearch_endpoint=ingest_stack.opensearch_endpoint,
             opensearch_index_name=opensearch_index_name,
+            opensearch_collection_arn=ingest_stack.collection_arn,
             chat_model=chat_model,
             embedding_model=embedding_model,
             chat_prompt=chat_prompt,
