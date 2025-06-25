@@ -22,7 +22,9 @@ def reset_processed_uris_cache(bucket_name: str) -> None:
             s3.delete_object(Bucket=bucket_name, Key=key)
             print(f"Deleted existing cache file: {key}")
         except s3.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] != "404":  # Ignore if file doesn't exist
+            if (
+                e.response["Error"]["Code"] != "404"
+            ):  # Ignore if file doesn't exist
                 raise
 
         # Create new empty file
@@ -34,4 +36,4 @@ def reset_processed_uris_cache(bucket_name: str) -> None:
 
 
 if __name__ == "__main__":
-    reset_processed_uris_cache(config["input_bucket_name"])
+    reset_processed_uris_cache(config["s3_bucket_name"])
