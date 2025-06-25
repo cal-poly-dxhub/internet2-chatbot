@@ -3,7 +3,7 @@ from aws_cdk import (
     aws_ec2 as ec2,
 )
 from aws_cdk import (
-    aws_ecr as ecr,
+    aws_ecr_assets as ecr_assets,
 )
 from aws_cdk import (
     aws_ecs as ecs,
@@ -83,28 +83,6 @@ class RagIngest(Construct):
             enable_fargate_capacity_providers=True,
         )
 
-        # Create ECR repositories for each service
-        video_repo = ecr.Repository(
-            self,
-            "VideoRepo",
-            repository_name="video-service",
-            removal_policy=RemovalPolicy.DESTROY,
-        )
-
-        pdf_repo = ecr.Repository(
-            self,
-            "PDFRepo",
-            repository_name="pdf-service",
-            removal_policy=RemovalPolicy.DESTROY,
-        )
-
-        audio_repo = ecr.Repository(
-            self,
-            "AudioRepo",
-            repository_name="audio-service",
-            removal_policy=RemovalPolicy.DESTROY,
-        )
-
         # Create IAM execution role for ECS tasks
         execution_role = iam.Role(
             self,
@@ -165,13 +143,6 @@ class RagIngest(Construct):
             removal_policy=RemovalPolicy.DESTROY,
         )
 
-        pdf_log_group = logs.LogGroup(
-            self,
-            "PDFLogGroup",
-            log_group_name="/ecs/pdf-service",
-            removal_policy=RemovalPolicy.DESTROY,
-        )
-
         audio_log_group = logs.LogGroup(
             self,
             "AudioLogGroup",
@@ -187,6 +158,9 @@ class RagIngest(Construct):
             code=lambda_.Code.from_asset("src/ingest/routing"),
             timeout=Duration.seconds(10),
             memory_size=128,
+            environment={
+                "DEFAULT_BUCKET": input_assets_bucket.bucket_name,
+            },
         )
 
         text_lambda = lambda_.Function(
@@ -214,6 +188,42 @@ class RagIngest(Construct):
             },
         )
 
+        # Create PDF Lambda function using container built from local source
+        pdf_lambda = lambda_.DockerImageFunction(
+            self,
+            "PDFProcessingLambda",
+            code=lambda_.DockerImageCode.from_image_asset(
+                directory="src/ingest/pdf",
+                asset_name="pdf-service",
+                platform=ecr_assets.Platform.LINUX_AMD64,
+            ),
+            memory_size=2048,  # 2GB memory
+            timeout=Duration.minutes(15),
+            environment={
+                "INDEX_NAME": index_name,
+                "OPENSEARCH_ENDPOINT": opensearch_endpoint,
+                "EMBEDDINGS_MODEL_ID": embeddings_model_id,
+            },
+            allow_public_subnet=True,
+            log_retention=logs.RetentionDays.ONE_WEEK,
+        )
+
+        # Add necessary permissions to the PDF Lambda role
+        pdf_lambda.role.add_managed_policy(
+            iam.ManagedPolicy.from_aws_managed_policy_name(
+                "AmazonTextractFullAccess"
+            )
+        )
+        pdf_lambda.role.add_managed_policy(
+            iam.ManagedPolicy.from_aws_managed_policy_name(
+                "AmazonBedrockFullAccess"
+            )
+        )
+        input_assets_bucket.grant_read_write(pdf_lambda)
+        pdf_lambda.add_to_role_policy(
+            iam.PolicyStatement(actions=["aoss:APIAccessAll"], resources=["*"])
+        )
+
         input_assets_bucket.grant_read(text_lambda)
         text_lambda.add_to_role_policy(
             iam.PolicyStatement(
@@ -235,7 +245,11 @@ class RagIngest(Construct):
 
         video_container = video_task_definition.add_container(
             "VideoContainer",
-            image=ecs.ContainerImage.from_ecr_repository(video_repo, "latest"),
+            image=ecs.ContainerImage.from_asset(
+                directory="src/ingest/video",
+                asset_name="video-service",
+                platform=ecr_assets.Platform.LINUX_AMD64,
+            ),
             logging=ecs.LogDriver.aws_logs(
                 stream_prefix="video-service",
                 log_group=video_log_group,
@@ -245,30 +259,6 @@ class RagIngest(Construct):
                 "OPENSEARCH_ENDPOINT": opensearch_endpoint,
                 "EMBEDDINGS_MODEL_ID": embeddings_model_id,
                 "VIDEO_TEXT_MODEL_ID": video_text_model_id,
-                "AWS_DEFAULT_REGION": region,
-            },
-        )
-
-        pdf_task_definition = ecs.FargateTaskDefinition(
-            self,
-            "PDFTaskDefinition",
-            memory_limit_mib=8192,
-            cpu=4096,
-            execution_role=execution_role,
-            task_role=task_role,
-        )
-
-        pdf_container = pdf_task_definition.add_container(
-            "PDFContainer",
-            image=ecs.ContainerImage.from_ecr_repository(pdf_repo, "latest"),
-            logging=ecs.LogDriver.aws_logs(
-                stream_prefix="pdf-service",
-                log_group=pdf_log_group,
-            ),
-            environment={
-                "INDEX_NAME": index_name,
-                "OPENSEARCH_ENDPOINT": opensearch_endpoint,
-                "EMBEDDINGS_MODEL_ID": embeddings_model_id,
                 "AWS_DEFAULT_REGION": region,
             },
         )
@@ -284,7 +274,11 @@ class RagIngest(Construct):
 
         audio_container = audio_task_definition.add_container(
             "AudioContainer",
-            image=ecs.ContainerImage.from_ecr_repository(audio_repo, "latest"),
+            image=ecs.ContainerImage.from_asset(
+                directory="src/ingest/audio",
+                asset_name="audio-service",
+                platform=ecr_assets.Platform.LINUX_AMD64,
+            ),
             logging=ecs.LogDriver.aws_logs(
                 stream_prefix="audio-service",
                 log_group=audio_log_group,
@@ -320,7 +314,7 @@ class RagIngest(Construct):
             retry_on_service_exceptions=True,
         )
 
-        input_assets_bucket.grant_read(routing_lambda)
+        input_assets_bucket.grant_read_write(routing_lambda)
 
         # Define the nested state machine for the Map state
         choice = sfn.Choice(self, "Choice")
@@ -478,31 +472,13 @@ class RagIngest(Construct):
         )
 
         # PDF branch
-        process_pdf = tasks.EcsRunTask(
+        process_pdf = tasks.LambdaInvoke(
             self,
             "pdf-task",
-            integration_pattern=sfn.IntegrationPattern.RUN_JOB,
-            cluster=cluster,
-            task_definition=pdf_task_definition,
-            assign_public_ip=True,
-            container_overrides=[
-                tasks.ContainerOverride(
-                    container_definition=pdf_container,
-                    environment=[
-                        tasks.TaskEnvironmentVariable(
-                            name="STEP_FUNCTION_INPUT",
-                            value=sfn.JsonPath.string_at(
-                                "States.JsonToString($)"
-                            ),
-                        ),
-                    ],
-                )
-            ],
-            launch_target=tasks.EcsFargateLaunchTarget(
-                platform_version=ecs.FargatePlatformVersion.LATEST,
-            ),
-            security_groups=[security_group],
+            lambda_function=pdf_lambda,
+            payload=sfn.TaskInput.from_json_path_at("$"),
             result_path="$.pdf_result",
+            retry_on_service_exceptions=True,
         )
 
         # Text branch
