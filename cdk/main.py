@@ -21,6 +21,7 @@ class RagChatbotStack(Stack):
         embedding_model: str,
         chat_prompt: str,
         config_path: str,
+        max_concurrency: int,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -33,6 +34,7 @@ class RagChatbotStack(Stack):
             embeddings_model_id=embeddings_model_id,
             video_text_model_id=video_text_model_id,
             region=self.region,
+            max_concurrency=max_concurrency,
         )
         rag_api_stack = RagBackend(
             self,
