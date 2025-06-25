@@ -68,6 +68,7 @@ def main(media_file_uri, transcribe_uri, metadata):
     transcript_json = response.json()
 
     output_path = "./images/transcript.json"
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, "w") as f:
         json.dump(transcript_json, f, indent=4)
 
