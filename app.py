@@ -19,6 +19,9 @@ RagChatbotStack(
     video_text_model_id=config["model"]["video_ingest"],
     chat_prompt=config["chat_prompt"],
     config_path=CONFIG_PATH,
+    max_concurrency=int(config["max_concurrency"]),
+    chunk_size=config["chunk_size"],
+    overlap=config["overlap"],
 )
 
 app.synth()

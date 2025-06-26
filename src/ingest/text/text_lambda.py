@@ -11,8 +11,10 @@ REGION = os.getenv("AWS_REGION")
 OPENSEARCH_ENDPOINT = os.getenv("OPENSEARCH_ENDPOINT")
 INDEX_NAME = os.getenv("INDEX_NAME")
 EMBEDDINGS_MODEL_ID = os.getenv("EMBEDDINGS_MODEL_ID")
-DEFAULT_CHUNK_SIZE = 500  # in tokens
-DEFAULT_OVERLAP = 0.1  # 10% overlap
+
+# Get chunk size and overlap from environment variables, with fallback defaults
+CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "500"))  # in characters
+OVERLAP = float(os.getenv("OVERLAP", "0.1"))  # overlap percentage
 
 client = boto3.client("bedrock-runtime")
 
@@ -49,25 +51,30 @@ def get_text_from_s3_uri(s3_uri: str) -> str:
 
 def create_chunks(
     text: str,
-    chunk_size: int = DEFAULT_CHUNK_SIZE,
-    overlap: float = DEFAULT_OVERLAP,
+    chunk_size: int = None,
+    overlap: float = None,
 ) -> List[str]:
     """
     Create chunks of text with specified size and overlap.
     Simple implementation that avoids infinite loops.
     """
+    # Use environment variables if parameters not provided
+    if chunk_size is None:
+        chunk_size = CHUNK_SIZE
+    if overlap is None:
+        overlap = OVERLAP
+    
     # If text is smaller than chunk_size, return it as a single chunk
-    approx_chars = chunk_size * 4
-    if len(text) <= approx_chars:
+    if len(text) <= chunk_size:
         return [text]
 
     chunks = []
-    overlap_chars = int(approx_chars * overlap)
+    overlap_chars = int(chunk_size * overlap)
 
     start = 0
     while start < len(text):
         # Calculate the end position for this chunk
-        end = min(start + approx_chars, len(text))
+        end = min(start + chunk_size, len(text))
 
         # Try to end at a space for cleaner chunks (but don't get stuck)
         if end < len(text):
@@ -86,8 +93,10 @@ def create_chunks(
             break
 
         # Move forward by chunk size minus overlap
-        start = end
-        if text[start] == " ":
+        start = end - overlap_chars
+        if start < 0:
+            start = 0
+        if start < len(text) and text[start] == " ":
             start += 1  # Skip the space we broke on
 
     return chunks
@@ -136,7 +145,7 @@ def lambda_handler(event, context):
 
         text = get_text_from_s3_uri(s3_uri)
 
-        chunks = create_chunks(text, DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP)
+        chunks = create_chunks(text)
 
         documents = []
         for chunk in chunks:
