@@ -139,7 +139,7 @@ aws s3 cp your-documents/ s3://<S3_BUCKET_NAME>/files-to-process/ --recursive
 # macOS
 brew install --cask libreoffice
 
-# Ubuntu/Debian  
+# Ubuntu/Debian
 sudo apt-get install libreoffice
 ```
 
@@ -182,20 +182,6 @@ python3 run_step_function.py
 python3 chat_test.py
 ```
 **Note**: You can start testing immediately after Step 6, but response quality will improve as more documents are processed. Wait for full ingestion completion for best results.
-
-## Configuration
-Key settings in `config.yaml`:
-- `chunk_size: "500"` - Characters per chunk
-- `overlap: "0.1"` - Overlap percentage (0.1 = 10%)
-- `max_concurrency: 3` - Parallel processing limit
-
-## Troubleshooting
-- **Docker access**: `sudo usermod -aG docker $USER && newgrp docker`
-- **CDK issues**: Check `aws sts get-caller-identity` and run `cdk bootstrap`
-- **Model access**: Verify in Bedrock console
-- **Processing fails**: Check Step Function logs in AWS Console
-- **Chat issues**: Verify API key and endpoint accessibility
-
 
 ## Troubleshooting
 - **Docker access**: `sudo usermod -aG docker $USER && newgrp docker`
