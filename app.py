@@ -20,6 +20,7 @@ RagChatbotStack(
     chat_prompt=config["chat_prompt"],
     config_path=CONFIG_PATH,
     max_concurrency=int(config["max_concurrency"]),
+    step_function_timeout_hours=int(config["step_function_timeout_hours"]),
     chunk_size=config["chunk_size"],
     overlap=config["overlap"],
 )
