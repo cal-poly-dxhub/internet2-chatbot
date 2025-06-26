@@ -38,10 +38,6 @@ Thanks for your interest in our solution.  Having specific examples of replicati
 
 **All work produced is open source. More information can be found in the GitHub repo.**
 
-## Author
-- Nick Riley - njriley@calpoly.edu
-
-
 ## Chatbot Overview
 - The [DxHub](https://dxhub.calpoly.edu/challenges/) developed a chatbot solution that can answer user questions pulling from their knowledge base articles. The chatbot contains many features:
 
@@ -196,4 +192,5 @@ python3 chat_test.py
 ## Support
 For queries or issues:
 - Darren Kraker, Sr Solutions Architect - dkraker@amazon.com
-- Nick Riley, Software Developer Intern - njriley@calpoly.edu
+- Nick Riley, Jr SDE - njriley@calpoly.edu
+- Kartik Malunjkar, Software Development Engineer Intern- kmalunjk@calpoly.edu
