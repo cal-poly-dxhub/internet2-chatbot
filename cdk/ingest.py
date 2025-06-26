@@ -52,6 +52,8 @@ class RagIngest(Construct):
         video_text_model_id: str,
         region: str,
         max_concurrency: int,
+        chunk_size: str,
+        overlap: str,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -294,8 +296,8 @@ class RagIngest(Construct):
             runtime=lambda_.Runtime.PYTHON_3_13,
             handler="routing_lambda.lambda_handler",
             code=lambda_.Code.from_asset("src/ingest/routing"),
-            timeout=Duration.seconds(10),
-            memory_size=128,
+            timeout=Duration.minutes(1),
+            memory_size=1024,
             environment={
                 "DEFAULT_BUCKET": input_assets_bucket.bucket_name,
             },
@@ -323,6 +325,8 @@ class RagIngest(Construct):
                 "INDEX_NAME": opensearch_index_name,
                 "OPENSEARCH_ENDPOINT": opensearch_endpoint,
                 "EMBEDDINGS_MODEL_ID": embeddings_model_id,
+                "CHUNK_SIZE": chunk_size,
+                "OVERLAP": overlap,
             },
         )
 

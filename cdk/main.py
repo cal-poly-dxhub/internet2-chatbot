@@ -22,6 +22,8 @@ class RagChatbotStack(Stack):
         chat_prompt: str,
         config_path: str,
         max_concurrency: int,
+        chunk_size: str,
+        overlap: str,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -35,6 +37,8 @@ class RagChatbotStack(Stack):
             video_text_model_id=video_text_model_id,
             region=self.region,
             max_concurrency=max_concurrency,
+            chunk_size=chunk_size,
+            overlap=overlap,
         )
         rag_api_stack = RagBackend(
             self,
