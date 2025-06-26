@@ -690,7 +690,7 @@ class RagIngest(Construct):
             self,
             "DataIngestionStateMachine",
             definition=process_bucket_data,
-            timeout=Duration.hours(2),
+            timeout=Duration.hours(10),
         )
 
         state_machine.add_to_role_policy(
