@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+from typing import Dict, List, Optional, Tuple, Any, Set
 from urllib.parse import urlparse
 
 import boto3
@@ -16,7 +17,7 @@ logger.setLevel(logging.INFO)
 s3_client = boto3.client("s3")
 
 
-def invoke_model(prompt, model_id, max_tokens=4096):
+def invoke_model(prompt: str, model_id: str, max_tokens: int = 4096) -> Optional[str]:
     """
     Calls Bedrock for a given modelid
 
@@ -54,7 +55,7 @@ def invoke_model(prompt, model_id, max_tokens=4096):
         return None
 
 
-def s3_uri_to_presigned_url(s3_uri, expiration=3600):
+def s3_uri_to_presigned_url(s3_uri: str, expiration: int = 3600) -> Optional[str]:
     """
     Convert an S3 URI to a presigned URL
 
@@ -90,14 +91,14 @@ def s3_uri_to_presigned_url(s3_uri, expiration=3600):
         return None
 
 
-def get_filename_from_s3_uri(s3_uri):
+def get_filename_from_s3_uri(s3_uri: str) -> str:
     """Extract just the filename from an S3 URI"""
     parsed_uri = urlparse(s3_uri)
     # Get the full path and extract the filename using os.path.basename
     return os.path.basename(parsed_uri.path)
 
 
-def get_filename_from_url(url):
+def get_filename_from_url(url: Optional[str]) -> str:
     """Extract just the filename from a URL"""
     if not url:
         return "source"
@@ -106,17 +107,10 @@ def get_filename_from_url(url):
     return os.path.basename(path) if path else "source"
 
 
-SOURCE_URL = 0
-FILE_TYPE = 1
-START_TIME = 2
-MEMBER_CONTENT = 3
-FILE_NAME = 4
+def process_text(text: str, uuid_mapping: Dict[str, Dict[str, Any]], metadata_mapping: Dict[str, Dict[str, Any]]) -> str:
+    """Replaces s3 uris and uuids with presign urls to sources using metadata mapping."""
 
-
-def process_text(text, uuid_mapping):
-    """Replaces s3 uris and uuids with presign urls to sources."""
-
-    def replace_image_uri(match):
+    def replace_image_uri(match: re.Match[str]) -> str:
         s3_uri = match.group(0)[4:-1]
         if s3_uri:
             presigned_url = s3_uri_to_presigned_url(s3_uri)
@@ -128,35 +122,30 @@ def process_text(text, uuid_mapping):
     image_pattern = r"!\[\]\(s3://[^\)]+\)"
     text = re.sub(image_pattern, replace_image_uri, text)
 
-    # Then replace all UUIDs with their corresponding sources
+    # Then replace all UUIDs with their corresponding source URLs using metadata
     uuid_pattern = r"<([a-f0-9]{8})>"
 
-    def replace_uuid(match):
+    def replace_uuid(match: re.Match[str]) -> str:
         uuid = match.group(1)
-        source_object = uuid_mapping.get(uuid)
-        if source_object:
-            source_url = source_object[SOURCE_URL]
-            file_type = source_object[FILE_TYPE]
-            start_time = source_object[START_TIME]
-            is_member = source_object[MEMBER_CONTENT]
-            file_name = source_object[FILE_NAME]
+        source_data = uuid_mapping.get(uuid)
+        metadata_info = metadata_mapping.get(uuid)
 
+        if source_data and metadata_info:
+            source_url = source_data["source_url"]
+            doc_type = metadata_info["doc_type"]
+            start_time = metadata_info.get("start_time")
+            is_member = metadata_info["member_content_flag"]
+            title = metadata_info["title"]
+
+            # Create member content badge
             badge = "[Subscriber-only]" if is_member == "true" else "[Public]"
 
-            if file_type == "audio/video":
-                url_with_timestamp = (
-                    f"{source_url}#t={start_time}" if start_time else source_url
-                )
-                return f"[{file_name}]({url_with_timestamp}) — _{badge}_"
-            elif file_type == "pdf":
-                url_with_timestamp = (
-                    f"{source_url}#page={start_time}"
-                    if start_time
-                    else source_url
-                )
-                return f"[{file_name}]({url_with_timestamp}) — _{badge}_"
+            # Add timestamp for video/audio content
+            if doc_type in ["video", "podcast"] and start_time:
+                url_with_timestamp = f"{source_url}#t={start_time}"
+                return f"[{title}]({url_with_timestamp}) — _{badge}_"
             else:
-                return f"[{file_name}]({source_url}) — _{badge}_"
+                return f"[{title}]({source_url}) — _{badge}_"
         return "[]()"
 
     text = re.sub(uuid_pattern, replace_uuid, text)
@@ -164,104 +153,187 @@ def process_text(text, uuid_mapping):
     return text
 
 
-def generate_source_mapping(documents):
-    """Generates a mapping from a generated uuid:(source url, file_type, start_time) for llm to read."""
-    source_mapping = {}
+def add_meeting_list(text: str, metadata_mapping: Dict[str, Dict[str, Any]]) -> str:
+    """Add meeting list at the bottom of the response based on metadata."""
+    meetings: Set[Tuple[str, str]] = set()
+
+    for uuid, metadata in metadata_mapping.items():
+        parent_folder_name = metadata.get("parent_folder_name", "")
+        parent_meeting_url = metadata.get("parent_meeting_url", "")
+
+        if parent_folder_name and parent_meeting_url:
+            meetings.add((parent_folder_name, parent_meeting_url))
+
+    if meetings:
+        text += "\n\n**Meetings referenced:**\n"
+        for folder_name, meeting_url in sorted(meetings):
+            text += f"• [{folder_name}]({meeting_url})\n"
+
+    return text
+
+
+def format_documents_for_llm(documents: List[Dict[str, Any]], source_mapping: Dict[str, Dict[str, Any]]) -> List[Dict[str, str]]:
+    """Format documents for LLM with only UUID and passage content."""
+    formatted_docs: List[Dict[str, str]] = []
+
+    # Convert source_mapping to a list to maintain order
+    source_items: List[Tuple[str, Dict[str, Any]]] = list(source_mapping.items())
+
+    for i, item in enumerate(documents):
+        if item.get("_source") and i < len(source_items):
+            document = item.get("_source")
+            passage = document.get("passage", "")
+
+            # Use the UUID at the same index position
+            doc_uuid = source_items[i][0]
+
+            formatted_doc: Dict[str, str] = {
+                "uuid": doc_uuid,
+                "passage": passage,
+            }
+            formatted_docs.append(formatted_doc)
+
+    return formatted_docs
+
+
+def extract_metadata_for_substitution(documents: List[Dict[str, Any]], source_mapping: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """Extract all metadata that will be substituted back after LLM response."""
+    metadata_mapping: Dict[str, Dict[str, Any]] = {}
+
+    # Convert source_mapping to a list to maintain order
+    source_items: List[Tuple[str, Dict[str, Any]]] = list(source_mapping.items())
+
+    for i, item in enumerate(documents):
+        if item.get("_source") and i < len(source_items):
+            document = item.get("_source")
+            metadata = document.get("metadata", {})
+            doc_type = document.get("type", "")
+
+            # Use the UUID at the same index position
+            doc_uuid = source_items[i][0]
+
+            # Get title based on document type
+            if doc_type == "video":
+                title = metadata.get("video_id", "Video")
+            elif doc_type == "podcast":
+                title = metadata.get("podcast_id", "Podcast")
+            elif doc_type == "pdf":
+                title = metadata.get("doc_id", "PDF Document")
+            else:
+                title = metadata.get("doc_id", "Document")
+
+            metadata_info: Dict[str, Any] = {
+                "title": title,
+                "parent_folder_name": metadata.get(
+                    "parent-folder-name", ""
+                ),
+                "parent_meeting_url": metadata.get(
+                    "parent-meeting-url", ""
+                ),
+                "member_content_flag": metadata.get("member-content", ""),
+                "doc_type": doc_type,
+            }
+
+            # Add start time for video/audio content
+            if doc_type in ["video", "podcast"]:
+                metadata_info["start_time"] = metadata.get("start_time", 0)
+
+            metadata_mapping[doc_uuid] = metadata_info
+
+    return metadata_mapping
+
+
+def generate_source_mapping(documents: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """Generates a mapping from uuid to source URL with timestamp info for LLM to read."""
+    source_mapping: Dict[str, Dict[str, Any]] = {}
     for item in documents:
         if item.get("_source"):
             document = item.get("_source")
             metadata = document.get("metadata", {})
 
             source_id = generate_short_uuid()
-
-            # Use the URL from metadata
             source_url = metadata.get("source-url", "")
-
-            is_member_content = metadata.get("member-content", "")
-            print(f"SOURCE: {source_url}")
-            print(f"MEMBER-CONTENT: {is_member_content}")
-
-            # Determine document type and get appropriate metadata
             doc_type = document.get("type", "")
+            member_content = metadata.get("member-content", "")
 
+            # Get title based on document type
             if doc_type == "video":
-                # Get start time from metadata
-                start_time = metadata.get("start_time", 0)
-                file_name = metadata.get("video_id", "")
-                source_mapping[source_id] = (
-                    source_url,
-                    "audio/video",
-                    start_time,
-                    is_member_content,
-                    file_name,
-                )
+                title = metadata.get("video_id", "Video")
             elif doc_type == "podcast":
-                # Get start time from metadata
-                start_time = metadata.get("start_time", 0)
-                file_name = metadata.get("podcast_id", "")
-                source_mapping[source_id] = (
-                    source_url,
-                    "audio/video",
-                    start_time,
-                    is_member_content,
-                    file_name,
-                )
+                title = metadata.get("podcast_id", "Podcast")
             elif doc_type == "pdf":
-                file_name = metadata.get("doc_id", "")
-                page_number = metadata.get("page_number", "")
-                source_mapping[source_id] = (
-                    source_url,
-                    "pdf",
-                    page_number,
-                    is_member_content,
-                    file_name,
-                )
+                title = metadata.get("doc_id", "PDF Document")
             else:
-                file_name = metadata.get("doc_id", "")
-                source_mapping[source_id] = (
-                    source_url,
-                    "text",
-                    0,
-                    is_member_content,
-                    file_name,
-                )
+                title = metadata.get("doc_id", "Document")
+
+            # Store source URL, timestamp info, member content flag, and title
+            source_data: Dict[str, Any] = {
+                "source_url": source_url,
+                "doc_type": doc_type,
+                "start_time": metadata.get("start_time", 0)
+                if doc_type in ["video", "podcast"]
+                else None,
+                "member_content": member_content,
+                "title": title,
+            }
+
+            source_mapping[source_id] = source_data
 
     return source_mapping
 
 
-def lambda_handler(event, context):
+def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
-        body_data = json.loads(event["body"])
-        user_query = body_data["query"]
+        body_data: Dict[str, Any] = json.loads(event["body"])
+        user_query: str = body_data["query"]
 
-        embedding = generate_text_embedding(user_query)
+        embedding: List[float] = generate_text_embedding(user_query)
 
-        selected_docs = get_documents(user_query, embedding)
+        selected_docs: List[Dict[str, Any]] = get_documents(user_query, embedding)
 
-        source_mapping = generate_source_mapping(selected_docs)
+        source_mapping: Dict[str, Dict[str, Any]] = generate_source_mapping(selected_docs)
 
-        prompt = (
+        # Format documents with only UUID and passage for LLM
+        formatted_docs: List[Dict[str, str]] = format_documents_for_llm(selected_docs, source_mapping)
+
+        # Extract metadata separately for post-processing
+        metadata_mapping: Dict[str, Dict[str, Any]] = extract_metadata_for_substitution(
+            selected_docs, source_mapping
+        )
+
+        # Create simplified mapping for LLM prompt (only UUIDs and source URLs)
+        simplified_mapping: Dict[str, str] = {}
+        for uuid, data in source_mapping.items():
+            simplified_mapping[uuid] = data["source_url"]
+
+        prompt: str = (
             "User:"
             + user_query
             + os.getenv("CHAT_PROMPT").format(
-                documents=selected_docs, citations=str(source_mapping)
+                documents=formatted_docs, citations=str(simplified_mapping)
             )
         )
 
         logger.info(f"User query length: {len(user_query)}")
-        logger.info(f"Documents length: {len(str(selected_docs))}")
+        logger.info(f"Formatted documents length: {len(str(formatted_docs))}")
         logger.info(f"Prompt length: {len(prompt)}")
 
-        model_response = invoke_model(prompt, os.getenv("CHAT_MODEL_ID"))
+        model_response: Optional[str] = invoke_model(prompt, os.getenv("CHAT_MODEL_ID"))
 
         logger.info(f"Model: {model_response}")
 
-        parsed_chat_respose = process_text(model_response, source_mapping)
+        # Use source mapping and metadata mapping for text processing
+        parsed_chat_respose: str = process_text(
+            model_response, source_mapping, metadata_mapping
+        )
 
-        return {"statusCode": 200, "body": json.dumps(parsed_chat_respose)}
+        # Add meeting list at the bottom
+        final_response: str = add_meeting_list(parsed_chat_respose, metadata_mapping)
+
+        return {"statusCode": 200, "body": json.dumps(final_response)}
 
     except Exception as e:
-        logger.error(f"Error in lambda_handler: {e}")
+        logger.error(f"Error in lambda_handler: {eg
         return {
             "statusCode": 500,
             "body": json.dumps("Error processing message"),
