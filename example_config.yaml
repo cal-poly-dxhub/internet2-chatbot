@@ -9,6 +9,7 @@ aws_region: <your-aws-region>
 
 # Ingest
 max_concurrency: 3 # This will depend on account limits (vcpu quota / 8)
+step_function_timeout_hours: 10
 opensearch_index_name: chatbot-vs
 opensearch_collection_name: rag-vs
 

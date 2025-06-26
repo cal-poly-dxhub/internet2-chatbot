@@ -22,6 +22,7 @@ class RagChatbotStack(Stack):
         chat_prompt: str,
         config_path: str,
         max_concurrency: int,
+        step_function_timeout_hours: int,
         chunk_size: str,
         overlap: str,
         **kwargs,
@@ -37,6 +38,7 @@ class RagChatbotStack(Stack):
             video_text_model_id=video_text_model_id,
             region=self.region,
             max_concurrency=max_concurrency,
+            step_function_timeout_hours=step_function_timeout_hours,
             chunk_size=chunk_size,
             overlap=overlap,
         )

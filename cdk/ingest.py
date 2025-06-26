@@ -52,6 +52,7 @@ class RagIngest(Construct):
         video_text_model_id: str,
         region: str,
         max_concurrency: int,
+        step_function_timeout_hours: int,
         chunk_size: str,
         overlap: str,
         **kwargs,
@@ -690,7 +691,7 @@ class RagIngest(Construct):
             self,
             "DataIngestionStateMachine",
             definition=process_bucket_data,
-            timeout=Duration.hours(10),
+            timeout=Duration.hours(step_function_timeout_hours),
         )
 
         state_machine.add_to_role_policy(
