@@ -1,9 +1,11 @@
+import os
+import uuid
+
 import boto3
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
 from search_utils import hybrid_search
-import os
-import uuid
+
 
 def initialize_opensearch():
     region = os.getenv("AWS_REGION")
@@ -83,8 +85,6 @@ def get_documents(prompt, embedding, size=10):
 
     return selected_docs
 
+
 def generate_short_uuid():
-    # Generate a full UUID
-    full_uuid = uuid.uuid4()
-    # Convert it to a string and take the first 8 characters
-    return str(full_uuid)[:8]
+    return uuid.uuid4().hex[:8]
