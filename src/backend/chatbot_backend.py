@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import re
-from typing import Dict, List, Optional, Tuple, Any, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.parse import urlparse
 
 import boto3
@@ -17,7 +17,9 @@ logger.setLevel(logging.INFO)
 s3_client = boto3.client("s3")
 
 
-def invoke_model(prompt: str, model_id: str, max_tokens: int = 4096) -> Optional[str]:
+def invoke_model(
+    prompt: str, model_id: str, max_tokens: int = 4096
+) -> Optional[str]:
     """
     Calls Bedrock for a given modelid
 
@@ -55,7 +57,9 @@ def invoke_model(prompt: str, model_id: str, max_tokens: int = 4096) -> Optional
         return None
 
 
-def s3_uri_to_presigned_url(s3_uri: str, expiration: int = 3600) -> Optional[str]:
+def s3_uri_to_presigned_url(
+    s3_uri: str, expiration: int = 3600
+) -> Optional[str]:
     """
     Convert an S3 URI to a presigned URL
 
@@ -107,7 +111,11 @@ def get_filename_from_url(url: Optional[str]) -> str:
     return os.path.basename(path) if path else "source"
 
 
-def process_text(text: str, uuid_mapping: Dict[str, Dict[str, Any]], metadata_mapping: Dict[str, Dict[str, Any]]) -> str:
+def process_text(
+    text: str,
+    uuid_mapping: Dict[str, Dict[str, Any]],
+    metadata_mapping: Dict[str, Dict[str, Any]],
+) -> str:
     """Replaces s3 uris and uuids with presign urls to sources using metadata mapping."""
 
     def replace_image_uri(match: re.Match[str]) -> str:
@@ -153,7 +161,9 @@ def process_text(text: str, uuid_mapping: Dict[str, Dict[str, Any]], metadata_ma
     return text
 
 
-def add_meeting_list(text: str, metadata_mapping: Dict[str, Dict[str, Any]]) -> str:
+def add_meeting_list(
+    text: str, metadata_mapping: Dict[str, Dict[str, Any]]
+) -> str:
     """Add meeting list at the bottom of the response based on metadata."""
     meetings: Set[Tuple[str, str]] = set()
 
@@ -172,12 +182,16 @@ def add_meeting_list(text: str, metadata_mapping: Dict[str, Dict[str, Any]]) -> 
     return text
 
 
-def format_documents_for_llm(documents: List[Dict[str, Any]], source_mapping: Dict[str, Dict[str, Any]]) -> List[Dict[str, str]]:
+def format_documents_for_llm(
+    documents: List[Dict[str, Any]], source_mapping: Dict[str, Dict[str, Any]]
+) -> List[Dict[str, str]]:
     """Format documents for LLM with only UUID and passage content."""
     formatted_docs: List[Dict[str, str]] = []
 
     # Convert source_mapping to a list to maintain order
-    source_items: List[Tuple[str, Dict[str, Any]]] = list(source_mapping.items())
+    source_items: List[Tuple[str, Dict[str, Any]]] = list(
+        source_mapping.items()
+    )
 
     for i, item in enumerate(documents):
         if item.get("_source") and i < len(source_items):
@@ -196,12 +210,16 @@ def format_documents_for_llm(documents: List[Dict[str, Any]], source_mapping: Di
     return formatted_docs
 
 
-def extract_metadata_for_substitution(documents: List[Dict[str, Any]], source_mapping: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+def extract_metadata_for_substitution(
+    documents: List[Dict[str, Any]], source_mapping: Dict[str, Dict[str, Any]]
+) -> Dict[str, Dict[str, Any]]:
     """Extract all metadata that will be substituted back after LLM response."""
     metadata_mapping: Dict[str, Dict[str, Any]] = {}
 
     # Convert source_mapping to a list to maintain order
-    source_items: List[Tuple[str, Dict[str, Any]]] = list(source_mapping.items())
+    source_items: List[Tuple[str, Dict[str, Any]]] = list(
+        source_mapping.items()
+    )
 
     for i, item in enumerate(documents):
         if item.get("_source") and i < len(source_items):
@@ -224,12 +242,8 @@ def extract_metadata_for_substitution(documents: List[Dict[str, Any]], source_ma
 
             metadata_info: Dict[str, Any] = {
                 "title": title,
-                "parent_folder_name": metadata.get(
-                    "parent-folder-name", ""
-                ),
-                "parent_meeting_url": metadata.get(
-                    "parent-meeting-url", ""
-                ),
+                "parent_folder_name": metadata.get("parent-folder-name", ""),
+                "parent_meeting_url": metadata.get("parent-meeting-url", ""),
                 "member_content_flag": metadata.get("member-content", ""),
                 "doc_type": doc_type,
             }
@@ -243,7 +257,9 @@ def extract_metadata_for_substitution(documents: List[Dict[str, Any]], source_ma
     return metadata_mapping
 
 
-def generate_source_mapping(documents: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+def generate_source_mapping(
+    documents: List[Dict[str, Any]],
+) -> Dict[str, Dict[str, Any]]:
     """Generates a mapping from uuid to source URL with timestamp info for LLM to read."""
     source_mapping: Dict[str, Dict[str, Any]] = {}
     for item in documents:
@@ -289,16 +305,22 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         embedding: List[float] = generate_text_embedding(user_query)
 
-        selected_docs: List[Dict[str, Any]] = get_documents(user_query, embedding)
+        selected_docs: List[Dict[str, Any]] = get_documents(
+            user_query, embedding
+        )
 
-        source_mapping: Dict[str, Dict[str, Any]] = generate_source_mapping(selected_docs)
+        source_mapping: Dict[str, Dict[str, Any]] = generate_source_mapping(
+            selected_docs
+        )
 
         # Format documents with only UUID and passage for LLM
-        formatted_docs: List[Dict[str, str]] = format_documents_for_llm(selected_docs, source_mapping)
+        formatted_docs: List[Dict[str, str]] = format_documents_for_llm(
+            selected_docs, source_mapping
+        )
 
         # Extract metadata separately for post-processing
-        metadata_mapping: Dict[str, Dict[str, Any]] = extract_metadata_for_substitution(
-            selected_docs, source_mapping
+        metadata_mapping: Dict[str, Dict[str, Any]] = (
+            extract_metadata_for_substitution(selected_docs, source_mapping)
         )
 
         # Create simplified mapping for LLM prompt (only UUIDs and source URLs)
@@ -318,7 +340,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         logger.info(f"Formatted documents length: {len(str(formatted_docs))}")
         logger.info(f"Prompt length: {len(prompt)}")
 
-        model_response: Optional[str] = invoke_model(prompt, os.getenv("CHAT_MODEL_ID"))
+        model_response: Optional[str] = invoke_model(
+            prompt, os.getenv("CHAT_MODEL_ID")
+        )
 
         logger.info(f"Model: {model_response}")
 
@@ -328,12 +352,14 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         )
 
         # Add meeting list at the bottom
-        final_response: str = add_meeting_list(parsed_chat_respose, metadata_mapping)
+        final_response: str = add_meeting_list(
+            parsed_chat_respose, metadata_mapping
+        )
 
         return {"statusCode": 200, "body": json.dumps(final_response)}
 
     except Exception as e:
-        logger.error(f"Error in lambda_handler: {eg
+        logger.error(f"Error in lambda_handler: {e}")
         return {
             "statusCode": 500,
             "body": json.dumps("Error processing message"),
