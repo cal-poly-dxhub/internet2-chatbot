@@ -275,8 +275,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             selected_docs, source_mapping
         )
 
-        print("FDOCS", formatted_docs)
-
         # Extract metadata separately for post-processing
         metadata_mapping: Dict[str, Dict[str, Any]] = (
             extract_metadata_for_substitution(selected_docs, source_mapping)
