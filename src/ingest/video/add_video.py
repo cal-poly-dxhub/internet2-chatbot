@@ -61,7 +61,7 @@ def process_video_data_and_add_to_opensearch(
                 "start_time": start_time,
                 "end_time": end_time,
                 "is_video": is_video,
-                "video_id": video_id,
+                "doc_id": video_id,
                 "slide_number": scene_number,
                 "special_instructions": special_instructions,
             }
