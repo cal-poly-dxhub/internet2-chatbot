@@ -197,12 +197,7 @@ def format_documents_for_llm(
         if item.get("_source") and i < len(source_items):
             document = item.get("_source")
             passage = document.get("passage", "")
-            doc_id = (
-                document.get("metadata", {}).get("doc_id")
-                or document.get("metadata", {}).get("video_id")
-                or document.get("metadata", {}).get("podcast_id")
-                or ""
-            )
+            doc_id = document.get("metadata").get("doc_id", "")
 
             # Use the UUID at the same index position
             doc_uuid = source_items[i][0]
