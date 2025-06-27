@@ -185,7 +185,7 @@ def add_meeting_list(
 def format_documents_for_llm(
     documents: List[Dict[str, Any]], source_mapping: Dict[str, Dict[str, Any]]
 ) -> List[Dict[str, str]]:
-    """Format documents for LLM with only UUID and passage content."""
+    """Format documents for LLM with only UUID, passage content, and file name."""
     formatted_docs: List[Dict[str, str]] = []
 
     # Convert source_mapping to a list to maintain order
@@ -197,12 +197,14 @@ def format_documents_for_llm(
         if item.get("_source") and i < len(source_items):
             document = item.get("_source")
             passage = document.get("passage", "")
+            doc_id = document.get("metadata").get("doc_id", "")
 
             # Use the UUID at the same index position
             doc_uuid = source_items[i][0]
 
             formatted_doc: Dict[str, str] = {
                 "uuid": doc_uuid,
+                "document_name": doc_id,
                 "passage": passage,
             }
             formatted_docs.append(formatted_doc)
@@ -317,6 +319,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         formatted_docs: List[Dict[str, str]] = format_documents_for_llm(
             selected_docs, source_mapping
         )
+
+        print("FDOCS", formatted_docs)
 
         # Extract metadata separately for post-processing
         metadata_mapping: Dict[str, Dict[str, Any]] = (
