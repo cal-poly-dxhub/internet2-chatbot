@@ -51,7 +51,7 @@ def invoke_model(
         return response["output"]["message"]["content"][0]["text"]
 
     except Exception as e:
-        print(f"Error calling the model: {str(e)}")
+        logger.error(f"Error invoking the model: {str(e)}")
         return None
 
 
@@ -86,10 +86,10 @@ def s3_uri_to_presigned_url(
         return presigned_url
 
     except NoCredentialsError:
-        print("AWS credentials not found")
+        logger.error("AWS credentials not found")
         return None
     except Exception as e:
-        print(f"Error: {str(e)}")
+        logger.error(e)
         return None
 
 
@@ -174,8 +174,6 @@ def add_meeting_list(
     if meetings:
         text += "\n\n**Meetings referenced:**\n"
         for folder_name, meeting_url, member_content in sorted(meetings):
-            print("MEMBER", member_content)
-            print("MEMBER", type(member_content))
             badge = (
                 "[Subscriber-only]" if member_content == "true" else "[Public]"
             )
@@ -310,7 +308,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         selected_docs: List[Dict[str, Any]] = get_documents(
             user_query, embedding
         )
-        print("DOCS", selected_docs)
 
         source_mapping: Dict[str, Dict[str, Any]] = generate_source_mapping(
             selected_docs
