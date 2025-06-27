@@ -14,13 +14,28 @@ def display_response(raw_text: str):
     st.markdown(decoded_text)
 
 
-# Streamlit App Setup
-st.set_page_config(page_title="Serveless Rag Chatbot PoC", page_icon="💬")
-st.title("RAG Serverless Framework")
-
 # Session state to hold conversation history
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
+# Streamlit App Setup
+st.set_page_config(page_title="Internet ii Chatbot PoC", page_icon="💬 ")
+st.title("Internet ii Chatbot PoC")
+
+with st.sidebar:
+    st.markdown("""
+    *Some questions you can ask me*
+    - What workloads can I run on AWS?
+    - What workloads can I run on GCP?
+    - What did Lee Pang say about Amazon Omics?
+    - What is AWS Omics?
+    - How do I convince my leadership of the importance of FinOps practices?
+    - Who has a Cloud Center of Excellence?
+    - How are people doing account provisioning?
+    - I’ve got a consultant coming in to install Control Tower for us, but they don’t have any higher ed experience. What questions should I be asking to make sure I don’t have to redo the work later?
+    - Do I have to set up a cloud networking architecture for each platform or is there a single strategy to rule them all?
+    """)
+
 
 # Display the chat messages
 for msg in st.session_state.messages:
@@ -49,6 +64,8 @@ if user_input:
         bot_reply = f"Error: {e}"
 
     # Add bot response to history
-    st.session_state.messages.append({"role": "assistant", "content": bot_reply})
+    st.session_state.messages.append(
+        {"role": "assistant", "content": bot_reply}
+    )
     with st.chat_message("assistant"):
         display_response(bot_reply)
