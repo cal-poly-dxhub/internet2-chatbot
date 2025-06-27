@@ -1,7 +1,8 @@
-import numpy as np
-import boto3
 import json
 import os
+
+import boto3
+import numpy as np
 
 
 def normalize_scores_(scores, normalizer):
@@ -65,7 +66,9 @@ def reciprocal_rank_fusion(lexical_results, semantic_results, k=60):
         combined_results[doc_id]["_score"] += 1 / (k + hit["_score"])
 
     combined_results = list(combined_results.values())
-    combined_results = sorted(combined_results, key=lambda x: x["_score"], reverse=True)
+    combined_results = sorted(
+        combined_results, key=lambda x: x["_score"], reverse=True
+    )
 
     return {"hits": {"hits": combined_results}}
 
@@ -89,13 +92,17 @@ def hybrid_search(
     """
 
     if use_rrf:
-        return reciprocal_rank_fusion(lexical_results, semantic_results, k=rrf_k)
+        return reciprocal_rank_fusion(
+            lexical_results, semantic_results, k=rrf_k
+        )
 
     combined_results = []
 
     # Normalize the scores from lexical and semantic searches
     lexical_scores = [hit["_score"] for hit in lexical_results["hits"]["hits"]]
-    semantic_scores = [hit["_score"] for hit in semantic_results["hits"]["hits"]]
+    semantic_scores = [
+        hit["_score"] for hit in semantic_results["hits"]["hits"]
+    ]
     normalized_lexical_scores = normalize_scores_(lexical_scores, normalizer)
     normalized_semantic_scores = normalize_scores_(semantic_scores, normalizer)
 
@@ -151,6 +158,7 @@ def hybrid_search(
 
 def generate_text_embedding(message):
     response = boto3.client("bedrock-runtime").invoke_model(
-        modelId=os.getenv("EMBEDDING_MODEL_ID"), body=json.dumps({"inputText": message})
+        modelId=os.getenv("EMBEDDING_MODEL_ID"),
+        body=json.dumps({"inputText": message}),
     )
     return json.loads(response["body"].read())["embedding"]
