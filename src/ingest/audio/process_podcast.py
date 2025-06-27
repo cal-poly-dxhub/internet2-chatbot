@@ -79,7 +79,9 @@ def add_speaker_labels(transcribe_json: str) -> tuple:
             segment_end_time = float(item["end_time"])
         elif item["type"] == "punctuation":
             modified_transcript = (
-                modified_transcript.rstrip() + item["alternatives"][0]["content"] + " "
+                modified_transcript.rstrip()
+                + item["alternatives"][0]["content"]
+                + " "
             )
 
     if modified_transcript:
@@ -144,7 +146,9 @@ def create_modified_transcript(
     segments = re.split(r"\[spk_\d+\]", labeled_transcript)
     speakers = re.findall(r"\[spk_\d+\]", labeled_transcript)
 
-    for speaker, segment in zip(speakers, segments[1:]):  # Skip the first empty segment
+    for speaker, segment in zip(
+        speakers, segments[1:]
+    ):  # Skip the first empty segment
         speaker_id = speaker.strip("[]")
         speaker_info = speaker_map.get(
             speaker_id,
@@ -187,7 +191,9 @@ def process_transcript_and_add_to_opensearch(
             )
             modified_transcript_data = json.loads(modified_transcript)
 
-            podcast_id = os.path.splitext(os.path.basename(transcribe_json_file))[0]
+            podcast_id = os.path.splitext(
+                os.path.basename(transcribe_json_file)
+            )[0]
             podcast_id = podcast_id.replace("-", "")
 
             # Prepare documents for bulk upload
@@ -246,7 +252,9 @@ def process_transcript_and_add_to_opensearch(
                 print("Failed to add segments to OpenSearch.")
 
         else:
-            print("Failed to process transcript due to speaker identification error.")
+            print(
+                "Failed to process transcript due to speaker identification error."
+            )
 
     except Exception as e:
         print(f"An error occurred during transcript processing: {str(e)}")
@@ -264,5 +272,7 @@ if __name__ == "__main__":
     s3_uri = sys.argv[2]
     source_url = sys.argv[3]
 
-    process_transcript_and_add_to_opensearch(transcribe_json_file, s3_uri, source_url)
+    process_transcript_and_add_to_opensearch(
+        transcribe_json_file, s3_uri, source_url
+    )
     print("Transcript processing and OpenSearch indexing completed.")
