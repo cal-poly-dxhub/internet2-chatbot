@@ -20,17 +20,17 @@ s3_client = boto3.client("s3")
 def invoke_model(
     prompt: str, model_id: str, max_tokens: int = 4096
 ) -> Optional[str]:
-    """
-    Calls Bedrock for a given modelid
+    """Calls Bedrock for a given model id.
 
     Args:
         prompt (str): The text prompt to send to the model
-        model_id (str): The model identifier
+        model_id (str): The Bedrock model identifier
         max_tokens (int): Maximum number of tokens to generate
 
     Returns:
         str: The text response from the model
     """
+
     bedrock = boto3.client("bedrock-runtime")
 
     try:
@@ -60,8 +60,7 @@ def invoke_model(
 def s3_uri_to_presigned_url(
     s3_uri: str, expiration: int = 3600
 ) -> Optional[str]:
-    """
-    Convert an S3 URI to a presigned URL
+    """Convert an S3 URI to a presigned URL.
 
     Args:
         s3_uri (str): S3 URI in format 's3://bucket-name/path/to/file'
@@ -70,6 +69,7 @@ def s3_uri_to_presigned_url(
     Returns:
         str: Presigned URL or None if there's an error
     """
+
     try:
         # Parse the S3 URI
         parsed_uri = urlparse(s3_uri)
@@ -100,15 +100,6 @@ def get_filename_from_s3_uri(s3_uri: str) -> str:
     parsed_uri = urlparse(s3_uri)
     # Get the full path and extract the filename using os.path.basename
     return os.path.basename(parsed_uri.path)
-
-
-def get_filename_from_url(url: Optional[str]) -> str:
-    """Extract just the filename from a URL"""
-    if not url:
-        return "source"
-    parsed_url = urlparse(url)
-    path = parsed_url.path
-    return os.path.basename(path) if path else "source"
 
 
 def process_text(
@@ -164,20 +155,25 @@ def process_text(
 def add_meeting_list(
     text: str, metadata_mapping: Dict[str, Dict[str, Any]]
 ) -> str:
-    """Add meeting list at the bottom of the response based on metadata."""
+    """Add meeting list at the bottom of the response based on UUIDs referenced in the LLM response."""
     meetings: Set[Tuple[str, str]] = set()
 
-    for uuid, metadata in metadata_mapping.items():
-        parent_folder_name = metadata.get("parent_folder_name", "")
-        parent_meeting_url = metadata.get("parent_meeting_url", "")
+    # Extract UUIDs that appear in the LLM response
+    uuid_pattern = r"([a-f0-9]{8})"
+    referenced_uuids = set(re.findall(uuid_pattern, text))
 
-        if parent_folder_name and parent_meeting_url:
-            meetings.add((parent_folder_name, parent_meeting_url))
+    # Only include meetings for UUIDs that were referenced in the response
+    for uuid in referenced_uuids:
+        metadata = metadata_mapping.get(uuid, {})
+        parent_folder_name = metadata.get("parent_folder_name", "")
+        parent_folder_url = metadata.get("parent_folder_url", "")
+        if parent_folder_name and parent_folder_url:
+            meetings.add((parent_folder_name, parent_folder_url))
 
     if meetings:
         text += "\n\n**Meetings referenced:**\n"
         for folder_name, meeting_url in sorted(meetings):
-            text += f"• [{folder_name}]({meeting_url})\n"
+            text += f"- [{folder_name}]({meeting_url})\n"
 
     return text
 
@@ -243,7 +239,7 @@ def extract_metadata_for_substitution(
             metadata_info: Dict[str, Any] = {
                 "title": title,
                 "parent_folder_name": metadata.get("parent-folder-name", ""),
-                "parent_meeting_url": metadata.get("parent-meeting-url", ""),
+                "parent_folder_url": metadata.get("parent-folder-url", ""),
                 "member_content_flag": metadata.get("member-content", ""),
                 "doc_type": doc_type,
             }
@@ -346,14 +342,14 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         logger.info(f"Model: {model_response}")
 
-        # Use source mapping and metadata mapping for text processing
-        parsed_chat_respose: str = process_text(
-            model_response, source_mapping, metadata_mapping
+        # Add meeting list at the bottom
+        meeting_response: str = add_meeting_list(
+            model_response, metadata_mapping
         )
 
-        # Add meeting list at the bottom
-        final_response: str = add_meeting_list(
-            parsed_chat_respose, metadata_mapping
+        # Use source mapping and metadata mapping for text processing
+        final_response: str = process_text(
+            meeting_response, source_mapping, metadata_mapping
         )
 
         return {"statusCode": 200, "body": json.dumps(final_response)}
