@@ -154,6 +154,7 @@ def add_meeting_list(
     text: str, metadata_mapping: Dict[str, Dict[str, Any]]
 ) -> str:
     """Add meeting list at the bottom of the response based on UUIDs referenced in the LLM response."""
+
     meetings: Set[Tuple[str, str]] = set()
 
     # Extract UUIDs that appear in the LLM response
@@ -186,6 +187,7 @@ def format_documents_for_llm(
     documents: List[Dict[str, Any]], source_mapping: Dict[str, Dict[str, Any]]
 ) -> List[Dict[str, str]]:
     """Format documents for LLM with only UUID, passage content, and file name."""
+
     formatted_docs: List[Dict[str, str]] = []
 
     # Convert source_mapping to a list to maintain order
@@ -216,6 +218,7 @@ def extract_metadata_for_substitution(
     documents: List[Dict[str, Any]], source_mapping: Dict[str, Dict[str, Any]]
 ) -> Dict[str, Dict[str, Any]]:
     """Extract all metadata that will be substituted back after LLM response."""
+
     metadata_mapping: Dict[str, Dict[str, Any]] = {}
 
     # Convert source_mapping to a list to maintain order
@@ -263,6 +266,7 @@ def generate_source_mapping(
     documents: List[Dict[str, Any]],
 ) -> Dict[str, Dict[str, Any]]:
     """Generates a mapping from uuid to source URL with timestamp info for LLM to read."""
+
     source_mapping: Dict[str, Dict[str, Any]] = {}
     for item in documents:
         if item.get("_source"):
