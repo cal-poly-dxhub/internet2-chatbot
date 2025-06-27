@@ -692,22 +692,3 @@ def lambda_handler(event, context):
             "statusCode": 500,
             "body": json.dumps(f"Error processing PDF: {str(e)}"),
         }
-
-
-lambda_handler(
-    {
-        "bucket": "ragchatbotstack-ragingestinputassetsbucket9e22a2ab-wf9uv8zsyvuw",
-        "key": "1947.02.28 annotated memo with tag info.pdf",
-        "lambda_name": "process-pdf",
-        "s3_uri": "s3://ragchatbotstack-ragingestinputassetsbucket9e22a2ab-wf9uv8zsyvuw/1947.02.28 annotated memo with tag info.pdf",
-        "data_type": "pdf",
-        "timestamp": "d67e6126-7d39-4346-9bd5-c90005ba4844",
-        "metadata": {
-            "parent-folder-url": "https://drive.google.com/drive/folders/1BEm1odEevNXVnzEoS73VE6xZcSYzvX9w",
-            "source-url": "https://drive.google.com/file/d/14Gv551v-wRhh6qSJwib_SeBXsLpmUtnW",
-            "parent-folder-name": "Dec 17 2024 - Document AI, BQ, and Looker",
-            "member-content": "true",
-        },
-    },
-    None,
-)
