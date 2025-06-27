@@ -13,7 +13,7 @@ s3_client = boto3.client("s3")
 
 
 def get_filename_from_s3_uri(s3_uri: str) -> str:
-    """Extract just the filename from an S3 URI"""
+    """Extract just the filename from an S3 URI."""
 
     parsed_uri = urlparse(s3_uri)
     # Get the full path and extract the filename using os.path.basename
