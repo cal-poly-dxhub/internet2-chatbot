@@ -41,9 +41,7 @@ def invoke_model(
         }
         messages = [{"role": "user", "content": [{"text": prompt}]}]
 
-        print(prompt)
-        print(messages)
-        print(len(messages))
+        logger.info(f"Prompt: {prompt}")
         response = bedrock.converse(
             modelId=model_id,
             messages=messages,
@@ -167,13 +165,21 @@ def add_meeting_list(
         metadata = metadata_mapping.get(uuid, {})
         parent_folder_name = metadata.get("parent_folder_name", "")
         parent_folder_url = metadata.get("parent_folder_url", "")
+        member_content = metadata.get("member_content_flag", "")
         if parent_folder_name and parent_folder_url:
-            meetings.add((parent_folder_name, parent_folder_url))
+            meetings.add(
+                (parent_folder_name, parent_folder_url, member_content)
+            )
 
     if meetings:
         text += "\n\n**Meetings referenced:**\n"
-        for folder_name, meeting_url in sorted(meetings):
-            text += f"- [{folder_name}]({meeting_url})\n"
+        for folder_name, meeting_url, member_content in sorted(meetings):
+            print("MEMBER", member_content)
+            print("MEMBER", type(member_content))
+            badge = (
+                "[Subscriber-only]" if member_content == "true" else "[Public]"
+            )
+            text += f"- [{folder_name}]({meeting_url}) - {badge}\n"
 
     return text
 
@@ -304,6 +310,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         selected_docs: List[Dict[str, Any]] = get_documents(
             user_query, embedding
         )
+        print("DOCS", selected_docs)
 
         source_mapping: Dict[str, Dict[str, Any]] = generate_source_mapping(
             selected_docs
