@@ -13,8 +13,11 @@ step_function_timeout_hours: 10 # Depends on amount of data, generally assume an
 opensearch_index_name: chatbot-vs
 opensearch_collection_name: rag-vs
 
-# Chat
+# Confluence and GDrive
+confluence_url: <your-confluence-url>
+google_drive_download_dir: "google_drive_downloads"
 
+# Chat
 file_input_folder: files-to-process/
 bucket_image_folder: image_store/
 ingest_cache_file: cache_file.txt
