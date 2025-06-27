@@ -9,24 +9,25 @@ from process_podcast import process_transcript_and_add_to_opensearch
 
 def get_s3_metadata(s3_uri):
     """Extract metadata from S3 object custom metadata."""
-    s3_client = boto3.client('s3')
-    
+    s3_client = boto3.client("s3")
+
     # Parse S3 URI
     if s3_uri.startswith("s3://"):
         path = s3_uri[5:]
     else:
         path = s3_uri
-    
+
     parts = path.split("/")
     bucket = parts[0]
     key = "/".join(parts[1:])
-    
+
     try:
         response = s3_client.head_object(Bucket=bucket, Key=key)
         # Extract custom metadata (x-amz-meta-* headers)
         custom_metadata = {
             k.replace("x-amz-meta-", ""): v.replace("=", "-").replace("?", "")
-            if isinstance(v, str) else v
+            if isinstance(v, str)
+            else v
             for k, v in response.get("Metadata", {}).items()
         }
         return custom_metadata
@@ -85,10 +86,10 @@ if __name__ == "__main__":
 
         job_name = input_data["TranscriptionJob"]["TranscriptionJobName"]
         media_file_uri = input_data["TranscriptionJob"]["Media"]["MediaFileUri"]
-        
+
         # Get metadata from S3 custom metadata instead of transcribe tags
         metadata = get_s3_metadata(media_file_uri)
-        
+
     except Exception as e:
         print(f"Error processing step function input: {e}")
 
