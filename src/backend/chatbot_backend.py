@@ -127,11 +127,11 @@ def add_meeting_list(
         text += "\n\n**Meetings referenced:**\n"
         for folder_name, meeting_url, member_content in sorted(meetings):
             badge = (
-                "*[Subscriber-only]"
+                "*[Subscriber-only]*"
                 if member_content == "true"
-                else "*[Public]"
+                else "*[Public]*"
             )
-            text += f"- [{folder_name}]({meeting_url}) - {badge}\n"
+            text += f"- [{folder_name}]({meeting_url}) — {badge}\n"
 
     return text
 
