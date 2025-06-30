@@ -69,11 +69,11 @@ def process_text(
         Text (str): The text with uuids substituted
 
     Example:
-        text = "This is a response with a source <sja84nak>"
-        uuid_mapping = {"sja84nak": {"source_url": "example.com}}
-        metadata_mapping = {"sja84nak": {"title": "example_website", "member_content_flag": "false"}}
-        >>> process_text(text, uuid_mapping, metadata_mapping)
-        "This is a response with a source [example_website](example.com) — _[Public]_"
+        >>> text = "This is a response with a source <sja84nak>"
+        >>> uuid_mapping = {"sja84nak": {"source_url": "example.com}}
+        >>> metadata_mapping = {"sja84nak": {"title": "example_website", "member_content_flag": "false"}}
+        >>> print(process_text(text, uuid_mapping, metadata_mapping))
+        >>> "This is a response with a source [example_website](example.com) — _[Public]_"
     """
 
     # Then replace all UUIDs with their corresponding source URLs using metadata
@@ -110,7 +110,37 @@ def process_text(
 def add_meeting_list(
     text: str, metadata_mapping: Dict[str, Dict[str, Any]]
 ) -> str:
-    """Add meeting list at the bottom of the response based on UUIDs referenced in the LLM response."""
+    """Add formatted meeting list to end of text based on UUIDs referenced.
+
+    Args:
+        text (str): Input text containing UUID references in format <uuid>
+        metadata_mapping (Dict[str, Dict[str, Any]]): Mapping of UUIDs to metadata
+            Format: {"uuid": {
+                "parent_folder_name": str,
+                "parent_folder_url": str,
+                "member_content_flag": str
+            }}
+
+    Returns:
+        str: Original text with appended meeting list in markdown format.
+                If meetings are found, adds a section "Meetings referenced:"
+                followed by formatted links with content badges.
+
+    Example:
+        >>> text = "Discussion from meeting <12345678>"
+        >>> metadata_mapping = {
+            "12345678": {
+                "parent_folder_name": "Q4 Review",
+                "parent_folder_url": "https://example.com/meetings/q4",
+                "member_content_flag": "false"
+            }
+        >>> result = add_meeting_list(text, metadata_mapping)
+        >>> print(result)
+        Passed in text with source <12345678>
+
+        **Meetings referenced:**
+        - [Q4 Review](https://example.com/meetings/q4) — *[Public]*
+    """
 
     meetings: Set[Tuple[str, str]] = set()
 
