@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import boto3
 from opensearch_query import generate_short_uuid, get_documents
-from s3_utils import get_filename_from_s3_uri, s3_uri_to_presigned_url
 from search_utils import generate_text_embedding
 
 logger = logging.getLogger()
@@ -56,19 +55,26 @@ def process_text(
     uuid_mapping: Dict[str, Dict[str, Any]],
     metadata_mapping: Dict[str, Dict[str, Any]],
 ) -> str:
-    """Replaces s3 uris and uuids with presign urls to sources using metadata mapping."""
+    """Replaces uuids with urls for sources using provided mappings.
 
-    def replace_image_uri(match: re.Match[str]) -> str:
-        s3_uri = match.group(0)[4:-1]
-        if s3_uri:
-            presigned_url = s3_uri_to_presigned_url(s3_uri)
-            file_name = get_filename_from_s3_uri(s3_uri)
-            return f"![{file_name}]({presigned_url})"
-        return "![]()"
+    Args:
+        text (str): Input text containing UUID references in format <uuid>
+        uuid_mapping (Dict[str, Dict[str, Any]]): Mapping of UUIDs to source URLs
+            Format: {"uuid": {"source_url": "url"}}
+        metadata_mapping (Dict[str, Dict[str, Any]]): Mapping of UUIDs to metadata
+            Format: {"uuid": {"title": str, "doc_type": str, "start_time": str,
+                            "member_content_flag": str}}
 
-    # First replace all S3 URIs in image markdown
-    image_pattern = r"!\[\]\(s3://[^\)]+\)"
-    text = re.sub(image_pattern, replace_image_uri, text)
+    Returns:
+        Text (str): The text with uuids substituted
+
+    Example:
+        text = "This is a response with a source <sja84nak>"
+        uuid_mapping = {"sja84nak": {"source_url": "example.com}}
+        metadata_mapping = {"sja84nak": {"title": "example_website", "member_content_flag": "false"}}
+        >>> process_text(text, uuid_mapping, metadata_mapping)
+        "This is a response with a source [example_website](example.com) — _[Public]_"
+    """
 
     # Then replace all UUIDs with their corresponding source URLs using metadata
     uuid_pattern = r"<([a-f0-9]{8})>"
@@ -323,3 +329,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             "statusCode": 500,
             "body": json.dumps("Error processing message"),
         }
+
+
+test_event = {"body": json.dumps({"query": "What is the weather today?"})}
+lambda_handler(test_event, None)
