@@ -300,7 +300,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             selected_docs
         )
 
-        # Format documents with only UUID and passage for LLM
         formatted_docs: List[Dict[str, str]] = format_documents_for_llm(
             selected_docs, source_mapping
         )
