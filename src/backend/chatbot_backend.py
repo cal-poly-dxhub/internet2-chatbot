@@ -175,7 +175,7 @@ def add_meeting_list(
 def format_documents_for_llm(
     documents: List[Dict[str, Any]], source_mapping: Dict[str, Dict[str, Any]]
 ) -> List[Dict[str, str]]:
-    """Format documents for LLM with only UUID, passage content, and file name."""
+    """Format documents for LLM to read with only UUID, passage content, and file name."""
 
     formatted_docs: List[Dict[str, str]] = []
 
