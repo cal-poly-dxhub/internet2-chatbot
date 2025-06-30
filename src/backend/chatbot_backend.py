@@ -179,19 +179,11 @@ def format_documents_for_llm(
 
     formatted_docs: List[Dict[str, str]] = []
 
-    # Convert source_mapping to a list to maintain order
-    source_items: List[Tuple[str, Dict[str, Any]]] = list(
-        source_mapping.items()
-    )
-
-    for i, item in enumerate(documents):
-        if item.get("_source") and i < len(source_items):
-            document = item.get("_source")
+    for i, (doc_uuid, _) in enumerate(source_mapping.items()):
+        if i < len(documents) and documents[i].get("_source"):
+            document = documents[i]["_source"]
             passage = document.get("passage", "")
-            doc_id = document.get("metadata").get("doc_id", "")
-
-            # Use the UUID at the same index position
-            doc_uuid = source_items[i][0]
+            doc_id = document.get("metadata", {}).get("doc_id", "")
 
             formatted_doc: Dict[str, str] = {
                 "uuid": doc_uuid,
