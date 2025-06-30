@@ -46,18 +46,9 @@ Thanks for your interest in our solution.  Having specific examples of replicati
     - Dynamic context integration for more relevant and precise answers
     - Real-time information retrieval
 
-    #### Advanced Image Capabilities
-    - Seamless processing of images within documents
-    - Visual context integration in responses
-    - Inline image display in user interface
-
     #### Source Attribution
     - Direct links to source documents
     - Easy access to reference materials
-
-    #### Smart Document Processing
-    - Intelligent parsing of PDF documents
-    - Advanced text and image extraction
 
     #### Scalability and Versitility
     - Serverless architecture enables automatic scaling
@@ -171,7 +162,13 @@ python google_drive_processor_enhanced.py
 cd ingest_utils
 python3 run_step_function.py
 ```
-*This automatically creates the OpenSearch index if needed, then starts document processing.*
+This automatically creates the OpenSearch index if needed, then starts document processing.
+
+**Note:** Files set for processing are saved to a cache (cache_file.txt inside the input bucket) so that duplicate files are not uploaded. To reset this cache run:
+
+```bash
+python3 run_step_function.py --reset-cache
+```
 
 ### Step 7: Test (Can Start Immediately)
 ```bash
