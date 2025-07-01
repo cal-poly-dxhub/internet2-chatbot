@@ -32,7 +32,27 @@ def initialize_opensearch():
     return client
 
 
-def select_top_documents(hybrid_results, max_docs=5):
+def select_top_documents(hybrid_results: dict, max_docs: int = 5) -> list:
+    """Selects top documents from hybrid search results based on relevance scores.
+
+    This function processes search results and returns the most relevant documents.
+    It either returns up to max_docs documents or cuts off at the point of maximum
+    score difference between consecutive documents, whichever yields fewer results.
+
+    Args:
+        hybrid_results: A dictionary containing search results with the following structure:
+        max_docs: Maximum number of documents to return. Defaults to 5.
+
+    Returns:
+        A list of document dictionaries, sorted by relevance score in descending order.
+        Each document retains its original structure from the input results.
+
+    Example:
+        >>> results = {"hits": {"hits": [{"_score": 0.9}, {"_score": 0.8}, {"_score": 0.3}]}}
+        >>> selected = select_top_documents(results, max_docs=2)
+        >>> len(selected)
+        2
+    """
     documents = hybrid_results["hits"]["hits"]
     sorted_docs = sorted(documents, key=lambda x: x["_score"], reverse=True)
 
@@ -44,6 +64,7 @@ def select_top_documents(hybrid_results, max_docs=5):
 
     score_diffs = [scores[i] - scores[i + 1] for i in range(len(scores) - 1)]
     if score_diffs:
+        # Selects at least four documents
         max_drop_index = max(score_diffs.index(max(score_diffs)), 4)
         return sorted_docs[: max_drop_index + 1]
     else:
