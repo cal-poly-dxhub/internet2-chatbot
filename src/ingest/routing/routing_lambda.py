@@ -157,18 +157,6 @@ def lambda_handler(event, context):
                 print(f"Skipping cached file: {key}")
                 continue
 
-            # Get object metadata
-            try:
-                metadata_response = s3.head_object(Bucket=bucket, Key=key)
-                # Extract custom metadata (x-amz-meta-* headers)
-                custom_metadata = {
-                    k.replace("x-amz-meta-", ""): v
-                    for k, v in metadata_response.get("Metadata", {}).items()
-                }
-            except Exception as e:
-                print(f"Error fetching metadata for {key}: {str(e)}")
-                custom_metadata = {}
-
             file_extension = key.split(".")[-1].lower()
             lambda_name = lambda_mappings.get(file_extension)
             if lambda_name:
@@ -180,7 +168,6 @@ def lambda_handler(event, context):
                         "s3_uri": s3_uri,
                         "data_type": file_extension,
                         "timestamp": context.aws_request_id,
-                        "metadata": custom_metadata,
                     }
                 )
                 # Add to cache entries for this batch
