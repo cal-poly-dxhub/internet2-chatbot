@@ -674,6 +674,27 @@ def process_pdf(s3_uri, metadata, bucket_name, s3_file_path):
     }
 
 
+def get_s3_metadata(s3_uri):
+    """Extract metadata from S3 object custom metadata."""
+    s3_client = boto3.client("s3")
+
+    bucket, key = parse_s3_uri(s3_uri)
+
+    try:
+        response = s3_client.head_object(Bucket=bucket, Key=key)
+        # Extract custom metadata (x-amz-meta-* headers)
+        custom_metadata = {
+            k.replace("x-amz-meta-", ""): v.replace("=", "-").replace("?", "")
+            if isinstance(v, str)
+            else v
+            for k, v in response.get("Metadata", {}).items()
+        }
+        return custom_metadata
+    except Exception as e:
+        print(f"Error fetching S3 metadata for {s3_uri}: {str(e)}")
+        return {}
+
+
 def lambda_handler(event, context):
     """Lambda handler for PDF processing"""
     try:
@@ -682,7 +703,7 @@ def lambda_handler(event, context):
 
         s3_uri = event["s3_uri"]
         bucket_name, s3_file_path = parse_s3_uri(s3_uri)
-        metadata = event.get("metadata", {})
+        metadata = get_s3_metadata(s3_uri)
 
         return process_pdf(s3_uri, metadata, bucket_name, s3_file_path)
 

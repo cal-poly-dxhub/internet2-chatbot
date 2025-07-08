@@ -63,7 +63,7 @@ def create_chunks(
         chunk_size = CHUNK_SIZE
     if overlap is None:
         overlap = OVERLAP
-    
+
     # If text is smaller than chunk_size, return it as a single chunk
     if len(text) <= chunk_size:
         return [text]
@@ -138,10 +138,31 @@ def get_filename_from_s3_uri(s3_uri):
     return os.path.basename(parsed_uri.path)
 
 
+def get_s3_metadata(s3_uri):
+    """Extract metadata from S3 object custom metadata."""
+    s3_client = boto3.client("s3")
+
+    bucket, key = parse_s3_uri(s3_uri)
+
+    try:
+        response = s3_client.head_object(Bucket=bucket, Key=key)
+        # Extract custom metadata (x-amz-meta-* headers)
+        custom_metadata = {
+            k.replace("x-amz-meta-", ""): v.replace("=", "-").replace("?", "")
+            if isinstance(v, str)
+            else v
+            for k, v in response.get("Metadata", {}).items()
+        }
+        return custom_metadata
+    except Exception as e:
+        print(f"Error fetching S3 metadata for {s3_uri}: {str(e)}")
+        return {}
+
+
 def lambda_handler(event, context):
     try:
         s3_uri = event["s3_uri"]
-        metadata = event.get("metadata", {})
+        metadata = get_s3_metadata(s3_uri)
 
         text = get_text_from_s3_uri(s3_uri)
 
