@@ -350,7 +350,3 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             "statusCode": 500,
             "body": json.dumps("Error processing message"),
         }
-
-
-test_event = {"body": json.dumps({"query": "What is the weather today?"})}
-lambda_handler(test_event, None)
