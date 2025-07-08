@@ -258,16 +258,7 @@ def generate_source_mapping(
             source_url = metadata.get("source-url", "")
             doc_type = document.get("type", "")
             member_content = metadata.get("member-content", "")
-
-            # Get title based on document type
-            if doc_type == "video":
-                title = metadata.get("video_id", "Video")
-            elif doc_type == "podcast":
-                title = metadata.get("podcast_id", "Podcast")
-            elif doc_type == "pdf":
-                title = metadata.get("doc_id", "PDF Document")
-            else:
-                title = metadata.get("doc_id", "Document")
+            title = metadata.get("doc_id", "Document")
 
             # Store source URL, timestamp info, member content flag, and title
             source_data: Dict[str, Any] = {
