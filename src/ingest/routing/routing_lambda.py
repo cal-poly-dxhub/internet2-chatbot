@@ -1,5 +1,6 @@
-import boto3
 import os
+
+import boto3
 from botocore.exceptions import ClientError
 
 
@@ -10,12 +11,14 @@ def get_cache_contents(s3_client, bucket):
     """
     try:
         response = s3_client.get_object(Bucket=bucket, Key="cache_file.txt")
-        content = response['Body'].read().decode('utf-8').strip()
+        content = response["Body"].read().decode("utf-8").strip()
         if content:
-            return set(line.strip() for line in content.split('\n') if line.strip())
+            return set(
+                line.strip() for line in content.split("\n") if line.strip()
+            )
         return set()
     except ClientError as e:
-        if e.response['Error']['Code'] == 'NoSuchKey':
+        if e.response["Error"]["Code"] == "NoSuchKey":
             # Cache file doesn't exist, create an empty one
             print("Cache file doesn't exist, creating empty cache file")
             s3_client.put_object(Bucket=bucket, Key="cache_file.txt", Body="")
@@ -31,20 +34,22 @@ def update_cache_file(s3_client, bucket, new_uris):
     """
     if not new_uris:
         return
-    
+
     try:
         # Get existing cache contents
         existing_cache = get_cache_contents(s3_client, bucket)
-        
+
         # Add new URIs
         updated_cache = existing_cache.union(set(new_uris))
-        
+
         # Write back to S3
-        cache_content = '\n'.join(sorted(updated_cache))
-        s3_client.put_object(Bucket=bucket, Key="cache_file.txt", Body=cache_content)
-        
+        cache_content = "\n".join(sorted(updated_cache))
+        s3_client.put_object(
+            Bucket=bucket, Key="cache_file.txt", Body=cache_content
+        )
+
         print(f"Updated cache file with {len(new_uris)} new entries")
-        
+
     except Exception as e:
         print(f"Error updating cache file: {str(e)}")
 
@@ -59,7 +64,10 @@ def reset_cache_file(s3_client, bucket):
         return {"status": "success", "message": "Cache file has been reset"}
     except Exception as e:
         print(f"Error resetting cache file: {str(e)}")
-        return {"status": "error", "message": f"Failed to reset cache file: {str(e)}"}
+        return {
+            "status": "error",
+            "message": f"Failed to reset cache file: {str(e)}",
+        }
 
 
 def lambda_handler(event, context):
@@ -72,23 +80,29 @@ def lambda_handler(event, context):
         "Bucket": "media-processing-bucket",
         "Prefix": "input-folder/"
     }
-    
+
     If event is empty, uses DEFAULT_BUCKET from environment variables
     with root directory as prefix.
-    
+
     Special event for cache reset:
     {
         "cache": "reset"
     }
     """
-    
+
     s3 = boto3.client("s3")
-    
+
     # Handle empty event by using environment variables
-    if not event or (not event.get("Bucket") and not event.get("Prefix") and not event.get("cache")):
+    if not event or (
+        not event.get("Bucket")
+        and not event.get("Prefix")
+        and not event.get("cache")
+    ):
         bucket = os.environ.get("DEFAULT_BUCKET")
         if not bucket:
-            raise ValueError("No bucket specified in event and DEFAULT_BUCKET environment variable not set")
+            raise ValueError(
+                "No bucket specified in event and DEFAULT_BUCKET environment variable not set"
+            )
         prefix = ""  # Use root directory
         print(f"Using default bucket: {bucket} with root directory")
     elif event.get("Bucket"):
@@ -98,13 +112,15 @@ def lambda_handler(event, context):
         # For cache operations, still need to determine bucket
         bucket = os.environ.get("DEFAULT_BUCKET")
         if not bucket:
-            raise ValueError("No bucket specified in event and DEFAULT_BUCKET environment variable not set")
+            raise ValueError(
+                "No bucket specified in event and DEFAULT_BUCKET environment variable not set"
+            )
         prefix = ""
-    
+
     # Handle cache reset event
     if event.get("cache") == "reset":
         return reset_cache_file(s3, bucket)
-    
+
     lambda_mappings = {
         "mp4": "process-video",
         "webm": "process-video",
@@ -133,24 +149,20 @@ def lambda_handler(event, context):
                 continue
             if key == "cache_file.txt":
                 continue
-                
+
             s3_uri = f"s3://{bucket}/{key}"
-            
+
             # Skip files that are already in cache
             if s3_uri in cached_uris:
                 print(f"Skipping cached file: {key}")
                 continue
-            
+
             # Get object metadata
             try:
                 metadata_response = s3.head_object(Bucket=bucket, Key=key)
-                # Extract custom metadata (x-amz-meta-* headers) and replace equal signs in values
+                # Extract custom metadata (x-amz-meta-* headers)
                 custom_metadata = {
-                    k.replace("x-amz-meta-", ""): v.replace("=", "-").replace(
-                        "?", ""
-                    )
-                    if isinstance(v, str)
-                    else v
+                    k.replace("x-amz-meta-", ""): v
                     for k, v in metadata_response.get("Metadata", {}).items()
                 }
             except Exception as e:
@@ -179,7 +191,9 @@ def lambda_handler(event, context):
     # Update cache file with newly processed files
     if new_cache_entries:
         update_cache_file(s3, bucket, new_cache_entries)
-        print(f"Processing {len(results)} new files, added {len(new_cache_entries)} to cache")
+        print(
+            f"Processing {len(results)} new files, added {len(new_cache_entries)} to cache"
+        )
     else:
         print("No new files to process")
 
