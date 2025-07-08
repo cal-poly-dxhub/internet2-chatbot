@@ -221,7 +221,6 @@ def process_transcript_and_add_to_opensearch(
                     "special_instructions": "The above is a snippet from the following podcast episode: "
                     + podcast_id,
                     "is_podcast": True,
-                    "doc_id": podcast_id,
                     "sequence_number": sequence_number,
                     "start_time": start_time,
                     "end_time": end_time,
