@@ -1,114 +1,108 @@
 import json
+import logging
 import os
+import uuid
 
 import boto3
 from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 REGION = os.getenv("AWS_REGION")
 OPENSEARCH_ENDPOINT = os.getenv("OPENSEARCH_ENDPOINT")
 INDEX_NAME = os.getenv("INDEX_NAME")
 
 
-def initialize_opensearch():
-    service = "aoss"
-    credentials = boto3.Session().get_credentials()
-    auth = AWSV4SignerAuth(credentials, REGION, service)
-    client = OpenSearch(
-        hosts=[{"host": OPENSEARCH_ENDPOINT, "port": 443}],
-        http_auth=auth,
-        use_ssl=True,
-        verify_certs=True,
-        connection_class=RequestsHttpConnection,
-        timeout=30,
-    )
-    return client
+def get_opensearch_client():
+    """Create and return an OpenSearch client with AWS authentication."""
+    try:
+        credentials = boto3.Session().get_credentials()
+        auth = AWSV4SignerAuth(credentials, REGION, "aoss")
+        
+        client = OpenSearch(
+            hosts=[{"host": OPENSEARCH_ENDPOINT, "port": 443}],
+            http_auth=auth,
+            use_ssl=True,
+            verify_certs=True,
+            connection_class=RequestsHttpConnection,
+            timeout=30
+        )
+        return client
+    except Exception as e:
+        logger.error(f"Error creating OpenSearch client: {e}")
+        return None
 
 
-def create_document(
-    passage: str, embedding: list[float], type: str, metadata: dict[str, str]
-) -> dict:
-    """Creates a document object with the specified fields."""
-    return {
+def create_document(passage, embedding, type="video", metadata=None):
+    """Create a document for OpenSearch indexing."""
+    if metadata is None:
+        metadata = {}
+        
+    doc_id = str(uuid.uuid4())
+    
+    document = {
+        "id": doc_id,
         "passage": passage,
         "embedding": embedding,
         "type": type,
-        "metadata": metadata,
+        "metadata": metadata
     }
+    
+    return document
 
 
-def bulk_add_to_opensearch(documents: list[dict]) -> bool:
-    """
-    Bulk add documents to OpenSearch.
-
-    Args:
-        documents: List of dictionaries, each containing:
-            - passage: str
-            - embedding: list[float]
-            - type: str
-            - metadata: dict
-
-    Returns:
-        bool: True if successful, False otherwise
-    """
+def bulk_add_to_opensearch(documents):
+    """Add multiple documents to OpenSearch using bulk API."""
     try:
-        client = initialize_opensearch()
-        bulk_operations = []
-
-        for doc in documents:
-            bulk_operations.append(
-                json.dumps({"index": {"_index": INDEX_NAME}})
-            )
-            bulk_operations.append(json.dumps(doc))
-
-        if bulk_operations:
-            bulk_body = "\n".join(bulk_operations) + "\n"
-            print(
-                f"Executing bulk upload with {len(bulk_operations)} documents..."
-            )
-            response = client.bulk(bulk_body)
-
-            if response.get("errors", False):
-                print(f"Errors occurred during bulk upload: {response}")
-                return False
-
-            print(
-                f"Bulk upload completed: took {response.get('took', 'N/A')}ms with {len(response.get('items', []))} items"
-            )
+        if not documents:
+            logger.warning("No documents to add to OpenSearch")
             return True
-        else:
-            print("No documents provided for bulk upload.")
+            
+        client = get_opensearch_client()
+        if not client:
             return False
-
+            
+        bulk_body = []
+        
+        for doc in documents:
+            # Add the index action
+            bulk_body.append({"index": {"_index": INDEX_NAME, "_id": doc["id"]}})
+            # Add the document
+            bulk_body.append(doc)
+        
+        # Execute bulk operation
+        response = client.bulk(body=bulk_body, refresh=True)
+        
+        # Check for errors
+        if response.get("errors", False):
+            error_items = [item for item in response.get("items", []) if item.get("index", {}).get("error")]
+            logger.error(f"Bulk indexing errors: {error_items}")
+            return False
+            
+        logger.info(f"Successfully added {len(documents)} documents to OpenSearch")
+        return True
+        
     except Exception as e:
-        print(f"An error occurred during bulk upload: {str(e)}")
+        logger.error(f"Error adding documents to OpenSearch: {e}")
         return False
 
 
-# Example usage
 if __name__ == "__main__":
-    # Example documents
-    sample_documents = [
-        {
-            "passage": "Sample text 1",
-            "embedding": [0.1, 0.2, 0.3],
-            "type": "document",
-            "metadata": {
-                "source": "example.com",
-                "author": "John Doe",
-                "date": "2024-01-01",
-            },
-        },
-        {
-            "passage": "Sample text 2",
-            "embedding": [0.4, 0.5, 0.6],
-            "type": "document",
-            "metadata": {
-                "source": "example.com",
-                "author": "Jane Doe",
-                "date": "2024-01-02",
-            },
-        },
-    ]
-
-    success = bulk_add_to_opensearch(sample_documents)
-    print("Success" if success else "Failure")
+    # Configure logging for standalone execution
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    
+    # Example usage
+    test_doc = create_document(
+        passage="This is a test document",
+        embedding=[0.1, 0.2, 0.3],  # This would be a real embedding vector
+        type="test",
+        metadata={"source": "test"}
+    )
+    
+    success = bulk_add_to_opensearch([test_doc])
+    logger.info("Indexing successful" if success else "Indexing failed")

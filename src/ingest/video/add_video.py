@@ -1,12 +1,13 @@
 import json
+import logging
 import os
 import re
 
 from langchain_aws import BedrockEmbeddings
-from log_config import get_logger
 from opensearch_utils import bulk_add_to_opensearch, create_document
 
-logger = get_logger(__name__)
+# Configure logger
+logger = logging.getLogger(__name__)
 
 REGION = os.getenv("AWS_REGION")
 EMBEDDINGS_MODEL_ID = os.getenv("EMBEDDINGS_MODEL_ID")
@@ -123,6 +124,13 @@ def process_video_data_and_add_to_opensearch(
 
 
 if __name__ == "__main__":
+    # Configure logging for standalone execution
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    
     json_file_path = "./videos/scenes_with_ocr.json"
     is_video = True
     special_instructions = (
