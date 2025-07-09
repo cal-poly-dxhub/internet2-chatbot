@@ -1,12 +1,13 @@
 import json
+import logging
 import os
 from typing import Any, Dict, List
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from log_config import get_logger
 from tqdm import tqdm
 
-logger = get_logger(__name__)
+# Configure logger
+logger = logging.getLogger(__name__)
 
 
 def ensure_directory_exists(file_path: str) -> None:
@@ -104,6 +105,13 @@ def chunk_transcriptions(
 
 
 if __name__ == "__main__":
+    # Configure logging for standalone execution
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    
     input_path = "./videos/matched_scenes.json"
     output_path = "./videos/matched_scenes.json"
 

@@ -61,4 +61,6 @@ if __name__ == "__main__":
     input_file = "./video/mp4_files/video.mp4"
     output_dir = "./video/one_shot/temp/video.mp4"
     success = run_scenedetect(input_file, output_dir)
-    logger.info("Scene detection successful" if success else "Scene detection failed")
+    logger.info(
+        "Scene detection successful" if success else "Scene detection failed"
+    )

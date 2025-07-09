@@ -1,13 +1,14 @@
 import json
+import logging
 import os
 import time
 
 import boto3
 import requests
 from botocore.exceptions import ClientError
-from log_config import get_logger
 
-logger = get_logger(__name__)
+# Configure logger
+logger = logging.getLogger(__name__)
 
 
 def create_directory(path):
@@ -89,6 +90,13 @@ def transcribe_and_save(s3_url, output_path, vocabulary_name=None):
 
 # Sample function call
 if __name__ == "__main__":
+    # Configure logging for standalone execution
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    
     s3_url = "s3://video.mp4"
     output_path = "transcriptions/video/transcription.json"
 

@@ -1,16 +1,17 @@
 import asyncio
 import json
+import logging
 import os
 from multiprocessing import Pool, cpu_count
 
 import aioboto3
 import numpy as np
 from botocore.exceptions import ClientError
-from log_config import get_logger
 from PIL import Image
 from tqdm import tqdm
 
-logger = get_logger(__name__)
+# Configure logger
+logger = logging.getLogger(__name__)
 
 
 def has_meaningful_text(image_data):
@@ -238,6 +239,13 @@ async def process_scenes_with_ocr_async(
 
 # Example usage
 if __name__ == "__main__":
+    # Configure logging for standalone execution
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    
     input_file = "matched_scenes_chunked.json"
     output_file = "scenes_with_ocr.json"
     parent_dir = "/tmp/video_processing"
