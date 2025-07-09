@@ -11,12 +11,20 @@ REGION = os.getenv("AWS_REGION")
 OPENSEARCH_ENDPOINT = os.getenv("OPENSEARCH_ENDPOINT")
 INDEX_NAME = os.getenv("INDEX_NAME")
 EMBEDDINGS_MODEL_ID = os.getenv("EMBEDDINGS_MODEL_ID")
+PROCESSED_FILES_TABLE = os.getenv("PROCESSED_FILES_TABLE")
 
 # Get chunk size and overlap from environment variables, with fallback defaults
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "500"))  # in characters
 OVERLAP = float(os.getenv("OVERLAP", "0.1"))  # overlap percentage
 
 client = boto3.client("bedrock-runtime")
+dynamodb = boto3.resource("dynamodb")
+processed_files_table = dynamodb.Table(PROCESSED_FILES_TABLE)
+
+
+def get_bucket_from_s3_uri(s3_uri):
+    """Extract bucket name from S3 URI."""
+    return s3_uri.replace("s3://", "").split("/")[0]
 
 
 def get_text_from_s3_uri(s3_uri: str) -> str:
@@ -138,6 +146,14 @@ def get_filename_from_s3_uri(s3_uri):
     return os.path.basename(parsed_uri.path)
 
 
+def parse_s3_uri(s3_uri):
+    """Parse S3 URI into bucket and key."""
+    parts = s3_uri.replace("s3://", "").split("/")
+    bucket = parts[0]
+    key = "/".join(parts[1:])
+    return bucket, key
+
+
 def get_s3_metadata(s3_uri):
     """Extract metadata from S3 object custom metadata."""
     s3_client = boto3.client("s3")
@@ -159,9 +175,42 @@ def get_s3_metadata(s3_uri):
         return {}
 
 
+def is_file_processed(s3_uri):
+    """Check if a file has already been processed by looking it up in DynamoDB"""
+    try:
+        response = processed_files_table.get_item(Key={"s3_uri": s3_uri})
+        return "Item" in response
+    except Exception as e:
+        print(f"Error checking if file is processed: {str(e)}")
+        return False
+
+def mark_file_processed(s3_uri):
+    """Mark a file as processed in DynamoDB"""
+    try:
+        processed_files_table.put_item(
+            Item={
+                "s3_uri": s3_uri,
+                "timestamp": int(time.time()),
+                "processor": "text_lambda"
+            }
+        )
+        print(f"Marked {s3_uri} as processed in DynamoDB")
+    except Exception as e:
+        print(f"Error marking file as processed: {str(e)}")
+
+
 def lambda_handler(event, context):
     try:
         s3_uri = event["s3_uri"]
+        
+        # Check if file has already been processed
+        if is_file_processed(s3_uri):
+            print(f"File {s3_uri} has already been processed. Skipping.")
+            return {
+                "statusCode": 200,
+                "body": json.dumps({"message": "File already processed", "s3_uri": s3_uri})
+            }
+            
         metadata = get_s3_metadata(s3_uri)
 
         text = get_text_from_s3_uri(s3_uri)
@@ -189,6 +238,9 @@ def lambda_handler(event, context):
                 "statusCode": 500,
                 "body": json.dumps({"error": "Failed to upload documents"}),
             }
+
+        # Mark file as processed in DynamoDB
+        mark_file_processed(s3_uri)
 
         return {
             "statusCode": 200,
