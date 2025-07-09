@@ -1,72 +1,72 @@
 import os
+import time
 
 import boto3
 from botocore.exceptions import ClientError
 
+# Get DynamoDB table name from environment variable
+PROCESSED_FILES_TABLE = os.getenv("PROCESSED_FILES_TABLE")
 
-def get_cache_contents(s3_client, bucket):
+# Initialize DynamoDB client
+dynamodb = boto3.resource("dynamodb")
+processed_files_table = dynamodb.Table(PROCESSED_FILES_TABLE)
+
+
+def get_processed_files():
     """
-    Retrieve the contents of the cache file from S3.
-    Returns a set of cached S3 URIs.
+    Retrieve all processed files from DynamoDB.
+    Returns a set of processed S3 URIs.
     """
     try:
-        response = s3_client.get_object(Bucket=bucket, Key="cache_file.txt")
-        content = response["Body"].read().decode("utf-8").strip()
-        if content:
-            return set(
-                line.strip() for line in content.split("\n") if line.strip()
+        response = processed_files_table.scan()
+        processed_files = set()
+        
+        for item in response['Items']:
+            processed_files.add(item['s3_uri'])
+        
+        # Handle pagination if there are more items
+        while 'LastEvaluatedKey' in response:
+            response = processed_files_table.scan(
+                ExclusiveStartKey=response['LastEvaluatedKey']
             )
+            for item in response['Items']:
+                processed_files.add(item['s3_uri'])
+        
+        return processed_files
+    except Exception as e:
+        print(f"Error reading processed files from DynamoDB: {str(e)}")
         return set()
-    except ClientError as e:
-        if e.response["Error"]["Code"] == "NoSuchKey":
-            # Cache file doesn't exist, create an empty one
-            print("Cache file doesn't exist, creating empty cache file")
-            s3_client.put_object(Bucket=bucket, Key="cache_file.txt", Body="")
-            return set()
-        else:
-            print(f"Error reading cache file: {str(e)}")
-            return set()
 
 
-def update_cache_file(s3_client, bucket, new_uris):
+def reset_processed_files():
     """
-    Add new S3 URIs to the cache file.
-    """
-    if not new_uris:
-        return
-
-    try:
-        # Get existing cache contents
-        existing_cache = get_cache_contents(s3_client, bucket)
-
-        # Add new URIs
-        updated_cache = existing_cache.union(set(new_uris))
-
-        # Write back to S3
-        cache_content = "\n".join(sorted(updated_cache))
-        s3_client.put_object(
-            Bucket=bucket, Key="cache_file.txt", Body=cache_content
-        )
-
-        print(f"Updated cache file with {len(new_uris)} new entries")
-
-    except Exception as e:
-        print(f"Error updating cache file: {str(e)}")
-
-
-def reset_cache_file(s3_client, bucket):
-    """
-    Reset the cache file by uploading an empty file.
+    Reset the processed files by clearing the DynamoDB table.
     """
     try:
-        s3_client.put_object(Bucket=bucket, Key="cache_file.txt", Body="")
-        print("Cache file has been reset (emptied)")
-        return {"status": "success", "message": "Cache file has been reset"}
+        # Scan the table to get all items
+        response = processed_files_table.scan()
+        
+        # Delete all items
+        with processed_files_table.batch_writer() as batch:
+            for item in response['Items']:
+                batch.delete_item(Key={'s3_uri': item['s3_uri']})
+        
+        # Handle pagination if there are more items
+        while 'LastEvaluatedKey' in response:
+            response = processed_files_table.scan(
+                ExclusiveStartKey=response['LastEvaluatedKey']
+            )
+            with processed_files_table.batch_writer() as batch:
+                for item in response['Items']:
+                    batch.delete_item(Key={'s3_uri': item['s3_uri']})
+        
+        print("Processed files table has been reset (emptied)")
+        return {"status": "success", "message": "Processed files table has been reset"}
     except Exception as e:
-        print(f"Error resetting cache file: {str(e)}")
+        print(f"Error resetting processed files table: {str(e)}")
         return {
             "status": "error",
-            "message": f"Failed to reset cache file: {str(e)}",
+            "message": f"Failed to reset processed files table: {str(e)}",
         }
 
 
@@ -119,7 +119,7 @@ def lambda_handler(event, context):
 
     # Handle cache reset event
     if event.get("cache") == "reset":
-        return reset_cache_file(s3, bucket)
+        return reset_processed_files()
 
     lambda_mappings = {
         "mp4": "process-video",
@@ -133,28 +133,25 @@ def lambda_handler(event, context):
         "vtt": "process-text",
     }
 
-    # Get cached files to avoid reprocessing
-    cached_uris = get_cache_contents(s3, bucket)
-    print(f"Found {len(cached_uris)} files in cache")
+    # Get processed files to avoid reprocessing
+    processed_uris = get_processed_files()
+    print(f"Found {len(processed_uris)} files already processed")
 
     response = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
 
     results = []
-    new_cache_entries = []
 
     if "Contents" in response:
         for obj in response["Contents"]:
             key = obj["Key"]
             if key.endswith("/"):
                 continue
-            if key == "cache_file.txt":
-                continue
 
             s3_uri = f"s3://{bucket}/{key}"
 
-            # Skip files that are already in cache
-            if s3_uri in cached_uris:
-                print(f"Skipping cached file: {key}")
+            # Skip files that are already processed
+            if s3_uri in processed_uris:
+                print(f"Skipping already processed file: {key}")
                 continue
 
             file_extension = key.split(".")[-1].lower()
@@ -170,18 +167,9 @@ def lambda_handler(event, context):
                         "timestamp": context.aws_request_id,
                     }
                 )
-                # Add to cache entries for this batch
-                new_cache_entries.append(s3_uri)
             else:
                 print(f"Skipping unsupported file type: {key}")
 
-    # Update cache file with newly processed files
-    if new_cache_entries:
-        update_cache_file(s3, bucket, new_cache_entries)
-        print(
-            f"Processing {len(results)} new files, added {len(new_cache_entries)} to cache"
-        )
-    else:
-        print("No new files to process")
+    print(f"Found {len(results)} new files to process")
 
     return results
