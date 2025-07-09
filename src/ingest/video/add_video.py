@@ -55,14 +55,10 @@ def process_video_data_and_add_to_opensearch(
             scene_number = scene.get("scene_number", 0)
             start_time = scene.get("start_time", 0)
             end_time = scene.get("end_time", 0)
-            relative_start_time = metadata.get("relative-start-time")
-
-            if not relative_start_time:
-                relative_start_time = 0
 
             # Common metadata for all documents from this scene
             combined_metadata = {
-                "start_time": start_time + int(relative_start_time),
+                "start_time": start_time,
                 "end_time": end_time,
                 "is_video": is_video,
                 "doc_id": video_id,
