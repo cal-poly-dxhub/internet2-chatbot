@@ -2,8 +2,10 @@ import json
 import os
 import re
 import sys
+import time
 from typing import Any, Dict
 
+import boto3
 from langchain_aws import BedrockEmbeddings
 from llm_interface import generate_response
 from opensearch_utils import bulk_add_to_opensearch, create_document
@@ -12,6 +14,35 @@ OPENSEARCH_ENDPOINT = os.getenv("OPENSEARCH_ENDPOINT")
 INDEX_NAME = os.getenv("INDEX_NAME")
 REGION = os.getenv("AWS_REGION")
 EMBEDDINGS_MODEL_ID = os.getenv("EMBEDDINGS_MODEL_ID")
+PROCESSED_FILES_TABLE = os.getenv("PROCESSED_FILES_TABLE")
+
+# Initialize DynamoDB client
+dynamodb = boto3.resource("dynamodb")
+processed_files_table = dynamodb.Table(PROCESSED_FILES_TABLE)
+
+
+def is_file_processed(s3_uri):
+    """Check if a file has already been processed by looking it up in DynamoDB"""
+    try:
+        response = processed_files_table.get_item(Key={"s3_uri": s3_uri})
+        return "Item" in response
+    except Exception as e:
+        print(f"Error checking if file is processed: {str(e)}")
+        return False
+
+def mark_file_processed(s3_uri):
+    """Mark a file as processed in DynamoDB"""
+    try:
+        processed_files_table.put_item(
+            Item={
+                "s3_uri": s3_uri,
+                "timestamp": int(time.time()),
+                "processor": "audio_processor"
+            }
+        )
+        print(f"Marked {s3_uri} as processed in DynamoDB")
+    except Exception as e:
+        print(f"Error marking file as processed: {str(e)}")
 
 
 def _get_emb_(passage):
@@ -247,17 +278,20 @@ def process_transcript_and_add_to_opensearch(
 
             if success:
                 print("All segments added to OpenSearch successfully.")
+                return True
             else:
                 print("Failed to add segments to OpenSearch.")
+                return False
 
         else:
             print(
                 "Failed to process transcript due to speaker identification error."
             )
+            return False
 
     except Exception as e:
         print(f"An error occurred during transcript processing: {str(e)}")
-        raise
+        return False
 
 
 if __name__ == "__main__":
@@ -270,8 +304,19 @@ if __name__ == "__main__":
     transcribe_json_file = sys.argv[1]
     s3_uri = sys.argv[2]
     source_url = sys.argv[3]
-
-    process_transcript_and_add_to_opensearch(
+    
+    # Check if file has already been processed
+    if is_file_processed(s3_uri):
+        print(f"File {s3_uri} has already been processed. Skipping.")
+        sys.exit(0)
+    
+    success = process_transcript_and_add_to_opensearch(
         transcribe_json_file, s3_uri, source_url
     )
-    print("Transcript processing and OpenSearch indexing completed.")
+    
+    if success:
+        # Mark file as processed in DynamoDB
+        mark_file_processed(s3_uri)
+        print("Transcript processing and OpenSearch indexing completed.")
+    else:
+        print("Failed to process transcript or add to OpenSearch.")

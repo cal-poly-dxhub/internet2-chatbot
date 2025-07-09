@@ -1,10 +1,43 @@
 import json
 import os
 import sys
+import time
 
 import boto3
 import requests
 from process_podcast import process_transcript_and_add_to_opensearch
+
+# Get DynamoDB table name from environment variable
+PROCESSED_FILES_TABLE = os.getenv("PROCESSED_FILES_TABLE")
+
+# Initialize DynamoDB client
+dynamodb = boto3.resource("dynamodb")
+processed_files_table = dynamodb.Table(PROCESSED_FILES_TABLE)
+
+
+def is_file_processed(s3_uri):
+    """Check if a file has already been processed by looking it up in DynamoDB"""
+    try:
+        response = processed_files_table.get_item(Key={"s3_uri": s3_uri})
+        return "Item" in response
+    except Exception as e:
+        print(f"Error checking if file is processed: {str(e)}")
+        return False
+
+
+def mark_file_processed(s3_uri):
+    """Mark a file as processed in DynamoDB"""
+    try:
+        processed_files_table.put_item(
+            Item={
+                "s3_uri": s3_uri,
+                "timestamp": int(time.time()),
+                "processor": "audio_main"
+            }
+        )
+        print(f"Marked {s3_uri} as processed in DynamoDB")
+    except Exception as e:
+        print(f"Error marking file as processed: {str(e)}")
 
 
 def get_s3_metadata(s3_uri):
@@ -37,6 +70,15 @@ def get_s3_metadata(s3_uri):
 
 
 def main(transcript_uri, media_file_uri, job_name, metadata):
+    # Check if file has already been processed
+    if is_file_processed(media_file_uri):
+        print(f"File {media_file_uri} has already been processed. Skipping.")
+        return {
+            "statusCode": 200,
+            "body": json.dumps({"message": "File already processed", "s3_uri": media_file_uri}),
+            "TranscriptionJobName": job_name,
+        }
+    
     # Fetch the JSON file from the URI
     response = requests.get(transcript_uri)
 
@@ -47,20 +89,31 @@ def main(transcript_uri, media_file_uri, job_name, metadata):
     with open(transcribe_json_file, "w") as f:
         json.dump(transcript_json, f, indent=4)
 
-    process_transcript_and_add_to_opensearch(
+    success = process_transcript_and_add_to_opensearch(
         transcribe_json_file, media_file_uri, metadata
     )
-    print(
-        f"Processed and added {os.path.basename(media_file_uri)} to OpenSearch successfully."
-    )
-
-    return {
-        "statusCode": 200,
-        "body": json.dumps(
+    
+    if success:
+        # Mark file as processed in DynamoDB
+        mark_file_processed(media_file_uri)
+        print(
             f"Processed and added {os.path.basename(media_file_uri)} to OpenSearch successfully."
-        ),
-        "TranscriptionJobName": job_name,
-    }
+        )
+
+        return {
+            "statusCode": 200,
+            "body": json.dumps(
+                f"Processed and added {os.path.basename(media_file_uri)} to OpenSearch successfully."
+            ),
+            "TranscriptionJobName": job_name,
+        }
+    else:
+        print(f"Failed to process {os.path.basename(media_file_uri)}")
+        return {
+            "statusCode": 500,
+            "body": json.dumps(f"Failed to process {os.path.basename(media_file_uri)}"),
+            "TranscriptionJobName": job_name,
+        }
 
 
 if __name__ == "__main__":
