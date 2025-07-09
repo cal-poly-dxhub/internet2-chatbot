@@ -631,10 +631,57 @@ def insert_document(doc: dict, metadata: Dict[str, str]):
             print(
                 f"Successfully bulk indexed {len(documents_to_index)} documents"
             )
+            return True
         else:
             print("Failed to bulk index documents")
+            return False
     else:
         print("No documents to index")
+        return False
+
+
+def update_cache_file(bucket, s3_uri):
+    """
+    Add a successfully processed S3 URI to the cache file.
+    """
+    try:
+        s3_client = boto3.client("s3")
+
+        # Get existing cache contents
+        try:
+            response = s3_client.get_object(Bucket=bucket, Key="cache_file.txt")
+            content = response["Body"].read().decode("utf-8").strip()
+            if content:
+                existing_cache = set(
+                    line.strip() for line in content.split("\n") if line.strip()
+                )
+            else:
+                existing_cache = set()
+        except Exception:
+            # If file doesn't exist or other error, create empty set
+            existing_cache = set()
+
+        # Add new URI
+        if s3_uri not in existing_cache:
+            existing_cache.add(s3_uri)
+
+            # Write back to S3
+            cache_content = "\n".join(sorted(existing_cache))
+            s3_client.put_object(
+                Bucket=bucket, Key="cache_file.txt", Body=cache_content
+            )
+
+            print(f"Added to cache: {s3_uri}")
+        else:
+            print(f"Already in cache: {s3_uri}")
+
+    except Exception as e:
+        print(f"Error updating cache file: {str(e)}")
+
+
+def get_bucket_from_s3_uri(s3_uri):
+    """Extract bucket name from S3 URI."""
+    return s3_uri.replace("s3://", "").split("/")[0]
 
 
 def parse_s3_uri(s3_uri):
@@ -660,18 +707,31 @@ def process_pdf(s3_uri, metadata, bucket_name, s3_file_path):
         header_split, s3_file_path, bucket_name, page_mapping
     )
 
-    insert_document(doc_chunks, metadata)
+    success = insert_document(doc_chunks, metadata)
 
-    print(
-        f"Processed and added {os.path.basename(s3_file_path)} to OpenSearch successfully."
-    )
-
-    return {
-        "statusCode": 200,
-        "body": json.dumps(
+    if success:
+        print(
             f"Processed and added {os.path.basename(s3_file_path)} to OpenSearch successfully."
-        ),
-    }
+        )
+
+        # Only add to cache after successful OpenSearch insertion
+        bucket = get_bucket_from_s3_uri(s3_uri)
+        update_cache_file(bucket, s3_uri)
+
+        return {
+            "statusCode": 200,
+            "body": json.dumps(
+                f"Processed and added {os.path.basename(s3_file_path)} to OpenSearch successfully."
+            ),
+        }
+    else:
+        print(f"Failed to process {os.path.basename(s3_file_path)}")
+        return {
+            "statusCode": 500,
+            "body": json.dumps(
+                f"Failed to process {os.path.basename(s3_file_path)}"
+            ),
+        }
 
 
 def get_s3_metadata(s3_uri):
