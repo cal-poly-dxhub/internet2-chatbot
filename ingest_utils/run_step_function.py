@@ -2,6 +2,7 @@
 """
 Script to run a Step Function execution using the ARN from config.
 Automatically checks and creates OpenSearch index if needed before running.
+Uses DynamoDB for tracking processed files.
 """
 
 import argparse
@@ -29,6 +30,34 @@ def check_create_opensearch_index(config):
     domain_index = config["opensearch_index_name"]
     check_create_index(domain_index)
 
+
+def reset_dynamodb_cache(config):
+    """Reset the DynamoDB cache by deleting all items in the table."""
+    if 'processed_files_table' not in config:
+        print("Error: 'processed_files_table' not found in config.yaml")
+        return False
+    
+    table_name = config['processed_files_table']
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(table_name)
+    
+    print(f"Resetting DynamoDB cache table: {table_name}")
+    
+    # Scan the table to get all items
+    try:
+        response = table.scan()
+        items = response.get('Items', [])
+        
+        # Delete each item
+        with table.batch_writer() as batch:
+            for item in items:
+                batch.delete_item(Key={'s3_uri': item['s3_uri']})
+        
+        print(f"Successfully deleted {len(items)} items from the cache table")
+        return True
+    except Exception as e:
+        print(f"Error resetting DynamoDB cache: {str(e)}")
+        return False
 def run_step_function(step_function_arn, input_data):
     """Run a Step Function execution with the provided ARN and input data."""
     client = boto3.client('stepfunctions')
@@ -46,7 +75,7 @@ def run_step_function(step_function_arn, input_data):
 def main():
     parser = argparse.ArgumentParser(description='Run a Step Function execution with automatic OpenSearch index creation.')
     parser.add_argument('--arn', type=str, help='Step Function ARN (optional, otherwise uses config)')
-    parser.add_argument('--reset-cache', action='store_true', help='Use {"cache": "reset"} as input')
+    parser.add_argument('--reset-cache', action='store_true', help='Reset the DynamoDB cache of processed files')
     parser.add_argument('--input', '-i', type=str, help='Custom JSON input string')
     parser.add_argument('--skip-index-check', action='store_true', help='Skip OpenSearch index check/creation')
     args = parser.parse_args()
@@ -68,7 +97,9 @@ def main():
     
     # Determine input data
     if args.reset_cache:
-        input_data = {"cache": "reset"}
+        # Reset DynamoDB cache
+        reset_dynamodb_cache(config)
+        input_data = {}
     elif args.input:
         try:
             input_data = json.loads(args.input)
