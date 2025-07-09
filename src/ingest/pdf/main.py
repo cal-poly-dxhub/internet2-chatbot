@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 from typing import Any, Dict, List
 
 import boto3
@@ -19,6 +20,7 @@ config = Config(read_timeout=600, retries=dict(max_attempts=5))
 REGION_NAME = os.getenv("AWS_REGION")
 INDEX_NAME = os.getenv("INDEX_NAME")
 EMBEDDINGS_MODEL_ID = os.getenv("EMBEDDINGS_MODEL_ID")
+PROCESSED_FILES_TABLE = os.getenv("PROCESSED_FILES_TABLE")
 
 bedrock_runtime = boto3.client(
     service_name="bedrock-runtime", config=config, region_name=REGION_NAME
@@ -27,6 +29,35 @@ s3 = boto3.client("s3", region_name=REGION_NAME)
 embeddings_client = BedrockEmbeddings(
     model_id=EMBEDDINGS_MODEL_ID, region_name=REGION_NAME
 )
+
+# Initialize DynamoDB client
+dynamodb = boto3.resource("dynamodb")
+processed_files_table = dynamodb.Table(PROCESSED_FILES_TABLE)
+
+
+def is_file_processed(s3_uri):
+    """Check if a file has already been processed by looking it up in DynamoDB"""
+    try:
+        response = processed_files_table.get_item(Key={"s3_uri": s3_uri})
+        return "Item" in response
+    except Exception as e:
+        print(f"Error checking if file is processed: {str(e)}")
+        return False
+
+
+def mark_file_processed(s3_uri):
+    """Mark a file as processed in DynamoDB"""
+    try:
+        processed_files_table.put_item(
+            Item={
+                "s3_uri": s3_uri,
+                "timestamp": int(time.time()),
+                "processor": "pdf_processor"
+            }
+        )
+        print(f"Marked {s3_uri} as processed in DynamoDB")
+    except Exception as e:
+        print(f"Error marking file as processed: {str(e)}")
 
 
 def strip_newline(cell: Any) -> str:
@@ -640,45 +671,6 @@ def insert_document(doc: dict, metadata: Dict[str, str]):
         return False
 
 
-def update_cache_file(bucket, s3_uri):
-    """
-    Add a successfully processed S3 URI to the cache file.
-    """
-    try:
-        s3_client = boto3.client("s3")
-
-        # Get existing cache contents
-        try:
-            response = s3_client.get_object(Bucket=bucket, Key="cache_file.txt")
-            content = response["Body"].read().decode("utf-8").strip()
-            if content:
-                existing_cache = set(
-                    line.strip() for line in content.split("\n") if line.strip()
-                )
-            else:
-                existing_cache = set()
-        except Exception:
-            # If file doesn't exist or other error, create empty set
-            existing_cache = set()
-
-        # Add new URI
-        if s3_uri not in existing_cache:
-            existing_cache.add(s3_uri)
-
-            # Write back to S3
-            cache_content = "\n".join(sorted(existing_cache))
-            s3_client.put_object(
-                Bucket=bucket, Key="cache_file.txt", Body=cache_content
-            )
-
-            print(f"Added to cache: {s3_uri}")
-        else:
-            print(f"Already in cache: {s3_uri}")
-
-    except Exception as e:
-        print(f"Error updating cache file: {str(e)}")
-
-
 def get_bucket_from_s3_uri(s3_uri):
     """Extract bucket name from S3 URI."""
     return s3_uri.replace("s3://", "").split("/")[0]
@@ -714,9 +706,8 @@ def process_pdf(s3_uri, metadata, bucket_name, s3_file_path):
             f"Processed and added {os.path.basename(s3_file_path)} to OpenSearch successfully."
         )
 
-        # Only add to cache after successful OpenSearch insertion
-        bucket = get_bucket_from_s3_uri(s3_uri)
-        update_cache_file(bucket, s3_uri)
+        # Mark file as processed in DynamoDB
+        mark_file_processed(s3_uri)
 
         return {
             "statusCode": 200,
@@ -762,6 +753,15 @@ def lambda_handler(event, context):
         print(f"Event: {json.dumps(event)}")
 
         s3_uri = event["s3_uri"]
+        
+        # Check if file has already been processed
+        if is_file_processed(s3_uri):
+            print(f"File {s3_uri} has already been processed. Skipping.")
+            return {
+                "statusCode": 200,
+                "body": json.dumps({"message": "File already processed", "s3_uri": s3_uri})
+            }
+        
         bucket_name, s3_file_path = parse_s3_uri(s3_uri)
         metadata = get_s3_metadata(s3_uri)
 
