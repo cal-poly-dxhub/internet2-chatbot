@@ -481,7 +481,7 @@ class RagIngest(Construct):
         wait_audio_transcribe = sfn.Wait(
             self,
             "WaitAudioTranscribe",
-            time=sfn.WaitTime.duration(Duration.seconds(10)),
+            time=sfn.WaitTime.duration(Duration.minutes(10)),
         )
 
         get_audio_transcription = tasks.CallAwsService(
@@ -554,7 +554,7 @@ class RagIngest(Construct):
         wait_video_transcribe = sfn.Wait(
             self,
             "WaitVideoTranscribe",
-            time=sfn.WaitTime.duration(Duration.seconds(10)),
+            time=sfn.WaitTime.duration(Duration.minutes(10)),
         )
 
         get_video_transcription = tasks.CallAwsService(
