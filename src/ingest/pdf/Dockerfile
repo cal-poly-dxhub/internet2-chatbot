@@ -1,11 +1,10 @@
 FROM public.ecr.aws/lambda/python:3.11
 
-# Copy requirements and install dependencies
-COPY requirements.txt ${LAMBDA_TASK_ROOT}
-RUN pip install --no-cache-dir -r ${LAMBDA_TASK_ROOT}/requirements.txt
+WORKDIR ${LAMBDA_TASK_ROOT}
 
-# Copy function code
-COPY . ${LAMBDA_TASK_ROOT}
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 
-# Set the CMD to your handler
-CMD [ "main.lambda_handler" ]
+COPY . .
+
+CMD ["main.lambda_handler"]
