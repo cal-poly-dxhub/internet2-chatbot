@@ -9,6 +9,9 @@ from aws_cdk import (
     Stack,
 )
 from aws_cdk import (
+    aws_dynamodb as dynamodb,
+)
+from aws_cdk import (
     aws_ec2 as ec2,
 )
 from aws_cdk import (
@@ -202,6 +205,17 @@ class RagIngest(Construct):
             auto_delete_objects=True,
         )
 
+        # Create DynamoDB table for processed files cache
+        processed_files_table = dynamodb.Table(
+            self,
+            "ProcessedFilesTable",
+            partition_key=dynamodb.Attribute(
+                name="s3_uri", type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+
         # Add bucket policy for Transcribe access
         input_assets_bucket.add_to_resource_policy(
             iam.PolicyStatement(
@@ -267,6 +281,21 @@ class RagIngest(Construct):
         )
         task_role.add_to_policy(transcribe_policy)
 
+        # Grant DynamoDB permissions to ECS task roles
+        task_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "dynamodb:PutItem",
+                    "dynamodb:GetItem",
+                    "dynamodb:UpdateItem",
+                    "dynamodb:DeleteItem",
+                    "dynamodb:Query",
+                    "dynamodb:Scan",
+                ],
+                resources=[processed_files_table.table_arn],
+            )
+        )
+
         # Add OpenSearch Permissions
         opensearch_policy = iam.PolicyStatement(
             effect=iam.Effect.ALLOW,
@@ -301,6 +330,7 @@ class RagIngest(Construct):
             memory_size=1024,
             environment={
                 "DEFAULT_BUCKET": input_assets_bucket.bucket_name,
+                "PROCESSED_FILES_TABLE": processed_files_table.table_name,
             },
         )
 
@@ -328,6 +358,7 @@ class RagIngest(Construct):
                 "EMBEDDINGS_MODEL_ID": embeddings_model_id,
                 "CHUNK_SIZE": chunk_size,
                 "OVERLAP": overlap,
+                "PROCESSED_FILES_TABLE": processed_files_table.table_name,
             },
         )
 
@@ -346,6 +377,7 @@ class RagIngest(Construct):
                 "INDEX_NAME": opensearch_index_name,
                 "OPENSEARCH_ENDPOINT": opensearch_endpoint,
                 "EMBEDDINGS_MODEL_ID": embeddings_model_id,
+                "PROCESSED_FILES_TABLE": processed_files_table.table_name,
             },
             allow_public_subnet=True,
             log_retention=logs.RetentionDays.ONE_WEEK,
@@ -403,6 +435,7 @@ class RagIngest(Construct):
                 "EMBEDDINGS_MODEL_ID": embeddings_model_id,
                 "VIDEO_TEXT_MODEL_ID": video_text_model_id,
                 "AWS_DEFAULT_REGION": region,
+                "PROCESSED_FILES_TABLE": processed_files_table.table_name,
             },
         )
 
@@ -432,6 +465,7 @@ class RagIngest(Construct):
                 "EMBEDDINGS_MODEL_ID": embeddings_model_id,
                 "AUDIO_TEXT_MODEL_ID": video_text_model_id,
                 "AWS_DEFAULT_REGION": region,
+                "PROCESSED_FILES_TABLE": processed_files_table.table_name,
             },
         )
 
@@ -459,6 +493,11 @@ class RagIngest(Construct):
 
         input_assets_bucket.grant_read_write(routing_lambda)
 
+        # Grant DynamoDB permissions to Lambda functions
+        processed_files_table.grant_read_write_data(routing_lambda)
+        processed_files_table.grant_read_write_data(text_lambda)
+        processed_files_table.grant_read_write_data(pdf_lambda)
+
         # Define the nested state machine for the Map state
         choice = sfn.Choice(self, "Choice")
 
@@ -481,7 +520,7 @@ class RagIngest(Construct):
         wait_audio_transcribe = sfn.Wait(
             self,
             "WaitAudioTranscribe",
-            time=sfn.WaitTime.duration(Duration.minutes(10)),
+            time=sfn.WaitTime.duration(Duration.minutes(1)),
         )
 
         get_audio_transcription = tasks.CallAwsService(
@@ -554,7 +593,7 @@ class RagIngest(Construct):
         wait_video_transcribe = sfn.Wait(
             self,
             "WaitVideoTranscribe",
-            time=sfn.WaitTime.duration(Duration.minutes(10)),
+            time=sfn.WaitTime.duration(Duration.minutes(1)),
         )
 
         get_video_transcription = tasks.CallAwsService(
@@ -715,6 +754,7 @@ class RagIngest(Construct):
         self.opensearch_endpoint = opensearch_endpoint
         self.collection_arn = collection_arn
         self.step_function_arn = state_machine.state_machine_arn
+        self.processed_files_table_name = processed_files_table.table_name
 
         CfnOutput(
             self,
@@ -727,4 +767,11 @@ class RagIngest(Construct):
             "StepFunctionArn",
             value=state_machine.state_machine_arn,
             description="ARN of the Step Function for data ingestion",
+        )
+
+        CfnOutput(
+            self,
+            "ProcessedFilesTableName",
+            value=processed_files_table.table_name,
+            description="DynamoDB table for tracking processed files",
         )
