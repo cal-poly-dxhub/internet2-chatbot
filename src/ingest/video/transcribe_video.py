@@ -51,7 +51,9 @@ def transcribe_and_save(s3_url, output_path, vocabulary_name=None):
 
         start_time = time.time()
         while True:
-            job = transcribe_client.get_transcription_job(TranscriptionJobName=job_name)
+            job = transcribe_client.get_transcription_job(
+                TranscriptionJobName=job_name
+            )
             job_status = job["TranscriptionJob"]["TranscriptionJobStatus"]
 
             if job_status in ["COMPLETED", "FAILED"]:
@@ -66,7 +68,9 @@ def transcribe_and_save(s3_url, output_path, vocabulary_name=None):
 
         # If job completed successfully, download and save the transcript
         if job_status == "COMPLETED":
-            transcript_uri = job["TranscriptionJob"]["Transcript"]["TranscriptFileUri"]
+            transcript_uri = job["TranscriptionJob"]["Transcript"][
+                "TranscriptFileUri"
+            ]
             response = requests.get(transcript_uri)
 
             create_directory(output_path)
@@ -93,10 +97,10 @@ if __name__ == "__main__":
     # Configure logging for standalone execution
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
-    
+
     s3_url = "s3://video.mp4"
     output_path = "transcriptions/video/transcription.json"
 

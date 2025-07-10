@@ -1,10 +1,11 @@
+import logging
+
 import scenedetect as sd
-from log_config import get_logger
 from scenedetect import SceneManager
 from scenedetect.detectors import ContentDetector
 from scenedetect.scene_manager import save_images, write_scene_list
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def run_scenedetect(
