@@ -217,14 +217,7 @@ def extract_metadata_for_substitution(
             doc_uuid = source_items[i][0]
 
             # Get title based on document type
-            if doc_type == "video":
-                title = metadata.get("video_id", "Video")
-            elif doc_type == "podcast":
-                title = metadata.get("podcast_id", "Podcast")
-            elif doc_type == "pdf":
-                title = metadata.get("doc_id", "PDF Document")
-            else:
-                title = metadata.get("doc_id", "Document")
+            title = metadata.get("doc_id", "Document")
 
             metadata_info: Dict[str, Any] = {
                 "title": title,
