@@ -385,14 +385,10 @@ class RagIngest(Construct):
 
         # Add necessary permissions to the PDF Lambda role
         pdf_lambda.role.add_managed_policy(
-            iam.ManagedPolicy.from_aws_managed_policy_name(
-                "AmazonTextractFullAccess"
-            )
+            iam.ManagedPolicy.from_aws_managed_policy_name("AmazonTextractFullAccess")
         )
         pdf_lambda.role.add_managed_policy(
-            iam.ManagedPolicy.from_aws_managed_policy_name(
-                "AmazonBedrockFullAccess"
-            )
+            iam.ManagedPolicy.from_aws_managed_policy_name("AmazonBedrockFullAccess")
         )
         input_assets_bucket.grant_read_write(pdf_lambda)
         pdf_lambda.add_to_role_policy(
@@ -401,9 +397,7 @@ class RagIngest(Construct):
 
         input_assets_bucket.grant_read(text_lambda)
         text_lambda.add_to_role_policy(
-            iam.PolicyStatement(
-                actions=["bedrock:InvokeModel"], resources=["*"]
-            )
+            iam.PolicyStatement(actions=["bedrock:InvokeModel"], resources=["*"])
         )
         text_lambda.add_to_role_policy(
             iam.PolicyStatement(actions=["aoss:APIAccessAll"], resources=["*"])
@@ -549,9 +543,7 @@ class RagIngest(Construct):
                     environment=[
                         tasks.TaskEnvironmentVariable(
                             name="STEP_FUNCTION_INPUT",
-                            value=sfn.JsonPath.string_at(
-                                "States.JsonToString($)"
-                            ),
+                            value=sfn.JsonPath.string_at("States.JsonToString($)"),
                         ),
                     ],
                 )
@@ -622,9 +614,7 @@ class RagIngest(Construct):
                     environment=[
                         tasks.TaskEnvironmentVariable(
                             name="STEP_FUNCTION_INPUT",
-                            value=sfn.JsonPath.string_at(
-                                "States.JsonToString($)"
-                            ),
+                            value=sfn.JsonPath.string_at("States.JsonToString($)"),
                         ),
                     ],
                 )
@@ -661,6 +651,14 @@ class RagIngest(Construct):
         wait_audio_transcribe.next(get_audio_transcription)
         get_audio_transcription.next(audio_job_complete)
 
+        # Create a Fail state for audio transcription failures
+        audio_transcription_failed = sfn.Fail(
+            self,
+            "AudioTranscriptionFailed",
+            cause="Audio transcription job failed",
+            error="TranscriptionJobFailed",
+        )
+
         audio_job_complete.when(
             sfn.Condition.string_equals(
                 "$.TranscriptionJob.TranscriptionJobStatus", "COMPLETED"
@@ -671,7 +669,7 @@ class RagIngest(Construct):
             sfn.Condition.string_equals(
                 "$.TranscriptionJob.TranscriptionJobStatus", "FAILED"
             ),
-            wait_audio_transcribe,
+            audio_transcription_failed,
         )
         audio_job_complete.otherwise(wait_audio_transcribe)
 
@@ -681,6 +679,14 @@ class RagIngest(Construct):
         start_video_transcription.next(wait_video_transcribe)
         wait_video_transcribe.next(get_video_transcription)
         get_video_transcription.next(video_job_complete)
+
+        # Create a Fail state for video transcription failures
+        video_transcription_failed = sfn.Fail(
+            self,
+            "VideoTranscriptionFailed",
+            cause="Video transcription job failed",
+            error="TranscriptionJobFailed",
+        )
 
         video_job_complete.when(
             sfn.Condition.string_equals(
@@ -692,7 +698,7 @@ class RagIngest(Construct):
             sfn.Condition.string_equals(
                 "$.TranscriptionJob.TranscriptionJobStatus", "FAILED"
             ),
-            wait_video_transcribe,
+            video_transcription_failed,
         )
         video_job_complete.otherwise(wait_video_transcribe)
 
