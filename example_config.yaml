@@ -3,13 +3,14 @@ opensearch_endpoint: <your-opensearch-endpoint>
 rag_api_endpoint: <your-rag-api-endpoint>
 s3_bucket_name: <your-s3-bucket-name>
 step_function_arn: <your-step-function-arn>
+processed_files_table: <your-dynamodb-table-name>
 
 api_key: <your-api-key>
 aws_region: <your-aws-region>
 
 # Ingest
 max_concurrency: 3 # This will depend on account limits (vcpu quota / 8)
-step_function_timeout_hours: 10 # Depends on amount of data, generally assume an hour of processing per 30 hours of video.
+step_function_timeout_hours: 24 # Depends on amount of data, generally assume an hour of processing per 30 hours of video.
 opensearch_index_name: chatbot-vs
 opensearch_collection_name: rag-vs
 
@@ -20,7 +21,6 @@ google_drive_download_dir: "google_drive_downloads"
 # Chat
 file_input_folder: files-to-process/
 bucket_image_folder: image_store/
-ingest_cache_file: cache_file.txt
 
 # For text file ingestion
 chunk_size: "500" # In number of characters, must be a string
@@ -56,5 +56,6 @@ chat_prompt: |
      USE EACH IMAGE AT MOST ONE TIME.
 
   6. Integrate citations naturally in the text by mentioning the source in angel brackets <uuid> after relevant points, line or paragraph. Use only the uuid provided in the documents.
+     ONLY put ONE uuid per bracket pair, if there are two sources list them individually as <source1>, <source2>.
 
   7. Do not ask the user for more information
