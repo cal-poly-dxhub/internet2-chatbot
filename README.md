@@ -87,6 +87,7 @@ opensearch_endpoint: <FROM_CDK_OUTPUT>
 rag_api_endpoint: <FROM_CDK_OUTPUT>
 s3_bucket_name: <FROM_CDK_OUTPUT>
 step_function_arn: <FROM_CDK_OUTPUT>
+processed_files_table: <FROM_CDK_OUTPUT>
 api_key: <FROM_API_GATEWAY_CONSOLE>
 ```
 
@@ -164,7 +165,7 @@ python3 run_step_function.py
 ```
 This automatically creates the OpenSearch index if needed, then starts document processing.
 
-**Note:** Files set for processing are saved to a cache (cache_file.txt inside the input bucket) so that duplicate files are not uploaded. To reset this cache run:
+**Note:** Files set for processing are saved to DynamoDB to ensure there are no lost updates due to concurrent operations. To reset this cache run:
 
 ```bash
 python3 run_step_function.py --reset-cache
