@@ -57,7 +57,7 @@ Thanks for your interest in our solution.  Having specific examples of replicati
 ## Deployment Steps
 
 ### Prerequisites
-- AWS CDK CLI, Docker (running), Python 3.x, Git
+- AWS CDK CLI, Docker (running), Python 3.x, Git, a CDK Bootstrapped environment
 - AWS credentials configured
 
 ### Step 1: Clone & Setup
