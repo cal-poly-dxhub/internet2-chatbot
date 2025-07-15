@@ -28,6 +28,11 @@ os_ = OpenSearch(
 )
 
 mapping = {
+    "settings": {
+        "index": {
+            "knn": True
+        }
+    },
     "mappings": {
         "properties": {
             "passsage": {
