@@ -67,6 +67,7 @@ cd internet2-chatbot
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+mv example_config.yaml config.yaml
 ```
 
 ### Step 2: Request Bedrock Model Access
