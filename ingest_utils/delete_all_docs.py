@@ -55,8 +55,7 @@ class OpenSearchBulkDeleter:
 
     def get_all_document_ids(self) -> List[str]:
         """
-        Get all document IDs from the configured index using search with pagination.
-        OpenSearch Serverless doesn't support scroll API.
+        Get all document IDs from the configured index using search_after pagination.
 
         Returns:
             List of document IDs
@@ -66,19 +65,24 @@ class OpenSearchBulkDeleter:
         try:
             doc_ids = []
             size = 1000  # Number of documents per page
-            from_offset = 0
+            search_after = None
+            total_docs = self.get_document_count()
 
             while True:
-                # Search for documents with pagination
-                response = self.client.search(
-                    index=self.index_name,
-                    body={
-                        "query": {"match_all": {}},
-                        "size": size,
-                        "from": from_offset,
-                        "_source": False,  # Only get document IDs, not the full source
-                    },
-                )
+                # Prepare search body
+                body = {
+                    "query": {"match_all": {}},
+                    "size": size,
+                    "sort": [{"_id": "asc"}],  # Required for search_after
+                    "_source": False,
+                }
+
+                # Add search_after for pagination
+                if search_after:
+                    body["search_after"] = search_after
+
+                # Search for documents
+                response = self.client.search(index=self.index_name, body=body)
 
                 hits = response["hits"]["hits"]
                 if not hits:
@@ -89,14 +93,15 @@ class OpenSearchBulkDeleter:
                 doc_ids.extend(batch_ids)
 
                 logger.info(
-                    f"Fetched {len(batch_ids)} document IDs (total: {len(doc_ids)})"
+                    f"Fetched {len(batch_ids)} document IDs (total: {len(doc_ids)}/{total_docs})"
                 )
 
-                # Check if we've reached the end
-                if len(hits) < size:
-                    break
+                # Get sort value for next batch
+                search_after = hits[-1]["sort"]
 
-                from_offset += size
+                # Check if we've fetched all documents
+                if len(doc_ids) >= total_docs:
+                    break
 
             logger.info(f"Found {len(doc_ids)} documents to delete")
             return doc_ids
