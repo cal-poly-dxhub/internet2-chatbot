@@ -12,9 +12,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-def invoke_model(
-    prompt: str, model_id: str, max_tokens: int = 4096
-) -> Optional[str]:
+def invoke_model(prompt: str, model_id: str, max_tokens: int = 4096) -> Optional[str]:
     """Calls Bedrock for a given model id.
 
     Args:
@@ -56,6 +54,7 @@ def process_text(
     metadata_mapping: Dict[str, Dict[str, Any]],
 ) -> str:
     """Replaces uuids with urls for sources using provided mappings.
+       If there is an invalid angle bracket <too short> or <too long> we simply remove them.
 
     Args:
         text (str): Input text containing UUID references in format <uuid>
@@ -76,7 +75,6 @@ def process_text(
         >>> "This is a response with a source [example_website](example.com) — _[Public]_"
     """
 
-    # Then replace all UUIDs with their corresponding source URLs using metadata
     uuid_pattern = r"<([a-f0-9]{8})>"
 
     def replace_uuid(match: re.Match[str]) -> str:
@@ -100,16 +98,18 @@ def process_text(
                 return f"[{title}]({url_with_timestamp}) — _{badge}_"
             else:
                 return f"[{title}]({source_url}) — _{badge}_"
-        return "[]()"
+        return match.group(0)  # Return the original match if UUID not found in mappings
 
+    # Process valid UUIDs first
     text = re.sub(uuid_pattern, replace_uuid, text)
+
+    # Then remove any remaining angle brackets and their contents
+    text = re.sub(r"<[^>]*>", "", text)
 
     return text
 
 
-def add_meeting_list(
-    text: str, metadata_mapping: Dict[str, Dict[str, Any]]
-) -> str:
+def add_meeting_list(text: str, metadata_mapping: Dict[str, Dict[str, Any]]) -> str:
     """Add formatted meeting list to end of text based on UUIDs referenced.
 
     Args:
@@ -155,18 +155,12 @@ def add_meeting_list(
         parent_folder_url = metadata.get("parent_folder_url", "")
         member_content = metadata.get("member_content_flag", "")
         if parent_folder_name and parent_folder_url:
-            meetings.add(
-                (parent_folder_name, parent_folder_url, member_content)
-            )
+            meetings.add((parent_folder_name, parent_folder_url, member_content))
 
     if meetings:
         text += "\n\n**Meetings referenced:**\n"
         for folder_name, meeting_url, member_content in sorted(meetings):
-            badge = (
-                "*[Subscriber-only]*"
-                if member_content == "true"
-                else "*[Public]*"
-            )
+            badge = "*[Subscriber-only]*" if member_content == "true" else "*[Public]*"
             text += f"- [{folder_name}]({meeting_url}) — {badge}\n"
 
     return text
@@ -203,9 +197,7 @@ def extract_metadata_for_substitution(
     metadata_mapping: Dict[str, Dict[str, Any]] = {}
 
     # Convert source_mapping to a list to maintain order
-    source_items: List[Tuple[str, Dict[str, Any]]] = list(
-        source_mapping.items()
-    )
+    source_items: List[Tuple[str, Dict[str, Any]]] = list(source_mapping.items())
 
     for i, item in enumerate(documents):
         if item.get("_source") and i < len(source_items):
@@ -276,9 +268,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         embedding: List[float] = generate_text_embedding(user_query)
 
-        selected_docs: List[Dict[str, Any]] = get_documents(
-            user_query, embedding
-        )
+        selected_docs: List[Dict[str, Any]] = get_documents(user_query, embedding)
 
         source_mapping: Dict[str, Dict[str, Any]] = generate_source_mapping(
             selected_docs
@@ -289,8 +279,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         )
 
         # Extract metadata separately for post-processing
-        metadata_mapping: Dict[str, Dict[str, Any]] = (
-            extract_metadata_for_substitution(selected_docs, source_mapping)
+        metadata_mapping: Dict[str, Dict[str, Any]] = extract_metadata_for_substitution(
+            selected_docs, source_mapping
         )
 
         # Create simplified mapping for LLM prompt (only UUIDs and source URLs)
@@ -310,16 +300,12 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         logger.info(f"Formatted documents length: {len(str(formatted_docs))}")
         logger.info(f"Prompt length: {len(prompt)}")
 
-        model_response: Optional[str] = invoke_model(
-            prompt, os.getenv("CHAT_MODEL_ID")
-        )
+        model_response: Optional[str] = invoke_model(prompt, os.getenv("CHAT_MODEL_ID"))
 
         logger.info(f"Model: {model_response}")
 
         # Add meeting list at the bottom
-        meeting_response: str = add_meeting_list(
-            model_response, metadata_mapping
-        )
+        meeting_response: str = add_meeting_list(model_response, metadata_mapping)
 
         # Use source mapping and metadata mapping for text processing
         final_response: str = process_text(
