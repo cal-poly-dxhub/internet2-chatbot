@@ -142,14 +142,14 @@ CONFLUENCE_API=your_atlassian_api_token_from_step_1
 GOOGLE_DRIVE_CREDENTIALS=/path/to/your/service-account.json
 S3_BUCKET_NAME=your-bucket-name
 S3_SUBFOLDER=files-to-process
-
+CONFLUENCE_URL=your-confluence-url
 # Load environment variables
 source names.env
 ```
 
 **6. Run Ingestion:**
 ```bash
-# Scrape asset links from Confluence wiki
+# Scrape asset links from Confluence wiki (creates a .csv file with links to folders)
 python confluence_processor.py
 
 # Download from Google Drive and upload to S3
