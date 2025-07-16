@@ -138,13 +138,10 @@ sudo apt-get install libreoffice
 cp names.env.example names.env
 
 # Set these variables in names.env:
-export CONFLUENCE_API=your_atlassian_api_token_from_step_1
-export GOOGLE_DRIVE_CREDENTIALS=/path/to/your/service-account.json
-export S3_BUCKET_NAME=your-bucket-name
-export S3_SUBFOLDER=files-to-process
-export AWS_ACCESS_KEY_ID=your_aws_key
-export AWS_SECRET_ACCESS_KEY=your_aws_secret
-export AWS_REGION=your_region
+CONFLUENCE_API=your_atlassian_api_token_from_step_1
+GOOGLE_DRIVE_CREDENTIALS=/path/to/your/service-account.json
+S3_BUCKET_NAME=your-bucket-name
+S3_SUBFOLDER=files-to-process
 
 # Load environment variables
 source names.env
@@ -156,7 +153,7 @@ source names.env
 python confluence_processor.py
 
 # Download from Google Drive and upload to S3
-python google_drive_processor.py
+python google_drive_processor_enhanced.py
 ```
 
 ### Step 6: Run Document Processing
