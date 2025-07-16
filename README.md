@@ -116,7 +116,7 @@ aws s3 cp your-documents/ s3://<S3_BUCKET_NAME>/files-to-process/ --recursive
 - Click "Create Credentials" > "Service account"
 - Give it a name and click "Create and Continue" > "Done"
 - Click your new service account > "Keys" tab > "Add Key" > "Create new key" > "JSON"
-- Download and save the JSON file
+- Download and save the JSON file (CRITICAL: Make sure the downloaded file is in a valid .json format)
 
 **3. Share Google Drive Access:**
 - Open Google Drive and right-click folders/files you want to ingest
