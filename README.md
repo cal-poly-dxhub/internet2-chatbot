@@ -154,6 +154,9 @@ python confluence_processor.py
 
 # Download from Google Drive and upload to S3
 python google_drive_processor_enhanced.py
+
+# Download .txt files from the wiki page descriptions section and upload to S3
+python confluence_event_descriptions_to_s3.py
 ```
 
 ### Step 6: Run Document Processing
