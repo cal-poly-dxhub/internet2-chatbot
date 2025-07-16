@@ -156,7 +156,7 @@ source names.env
 python confluence_processor.py
 
 # Download from Google Drive and upload to S3
-python google_drive_processor_enhanced.py
+python google_drive_processor.py
 ```
 
 ### Step 6: Run Document Processing
