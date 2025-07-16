@@ -144,6 +144,8 @@ GOOGLE_API_KEY=your-google-api-key
 CONFLUENCE_API=your_atlassian_api_token_from_step_1
 # Load environment variables
 source names.env
+# Set these variables in config.yaml and check for any missing fields
+CONFLUENCE_URL=your-confleunce-url-to-scrape
 ```
 
 **6. Run Ingestion:**
