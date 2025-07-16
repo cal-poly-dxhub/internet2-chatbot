@@ -2,14 +2,14 @@ import json
 import os
 
 from dotenv import load_dotenv
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
+from google.oauth2 import service_account #type: ignore
+from googleapiclient.discovery import build #type: ignore
 
 load_dotenv("names.env")
 
 # Load your service account key
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
-SERVICE_ACCOUNT_FILE = os.get("GOOGLE_DRIVE_CREDENTIALS")
+SERVICE_ACCOUNT_FILE = os.get("GOOGLE_DRIVE_CREDENTIALS") # type: ignore
 
 # Print service account info
 with open(SERVICE_ACCOUNT_FILE) as f:

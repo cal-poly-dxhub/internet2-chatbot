@@ -1,18 +1,18 @@
-import json
-import logging
 import os
-import re  # Added for regular expressions
-import subprocess
-from typing import Dict, List, Optional
-
-import pandas as pd
-import pymediainfo  # type: ignore
-import yaml  # type: ignore
-from dotenv import dotenv_values
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+import pandas as pd# type: ignore
+from googleapiclient.discovery import build# type: ignore
+from google.oauth2 import service_account# type: ignore
+import json
+from typing import List, Dict, Optional
 from s3_uploader import S3Uploader
+from dotenv import dotenv_values
+import re  # Added for regular expressions
+from googleapiclient.errors import HttpError# type: ignore
+import subprocess
+import yaml # type: ignore
+import logging
+import pymediainfo # type: ignore
+
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -57,8 +57,7 @@ class GoogleDriveProcessor:
         self,
         service_account_json: str,
         s3_uploader: S3Uploader,
-        output_dir: str,
-        s3_subfolder: str = "",
+        output_dir: str
     ):
         self.creds = service_account.Credentials.from_service_account_info(
             json.loads(service_account_json),
@@ -75,15 +74,12 @@ class GoogleDriveProcessor:
                 "drive", "v3", credentials=self.creds, developerKey=api_key
             )
         else:
-            logger.debug(
-                "GOOGLE_API_KEY not found. Initializing Drive service without developerKey."
-            )
+            logger.debug("GOOGLE_API_KEY not found. Initializing Drive service without developerKey.")
             self.service = build("drive", "v3", credentials=self.creds)
 
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
         self.s3_uploader = s3_uploader
-        self.s3_subfolder = s3_subfolder
 
         # Global timestamp tracking across all videos
         self.global_timestamp_seconds = 0
@@ -96,13 +92,7 @@ class GoogleDriveProcessor:
         name_without_ext = os.path.splitext(file_name)[0]
         # Remove common suffixes that might differentiate files of the same content
         # Order matters: removes longer more specific patterns first
-        suffixes_to_remove = [
-            "_recording",
-            "_chat",
-            "_audio",
-            "_transcript",
-            "_video",
-        ]
+        suffixes_to_remove = ["_recording", "_chat", "_audio", "_transcript", "_video"]
         for suffix in suffixes_to_remove:
             if name_without_ext.lower().endswith(suffix):
                 name_without_ext = name_without_ext[: -len(suffix)]
@@ -154,9 +144,7 @@ class GoogleDriveProcessor:
             )
             return f"error_folder_name_{folder_id}"
         except Exception as e:
-            logger.error(
-                f"Unexpected error getting folder name for {folder_id}: {e}"
-            )
+            logger.error(f"Unexpected error getting folder name for {folder_id}: {e}")
             return f"error_folder_name_{folder_id}"
 
     def _list_files_in_folder(self, folder_id: str) -> List[Dict]:
@@ -201,8 +189,7 @@ class GoogleDriveProcessor:
             )
             output, error = process.communicate()
             pdf_path = os.path.join(
-                output_dir,
-                os.path.splitext(os.path.basename(input_path))[0] + ".pdf",
+                output_dir, os.path.splitext(os.path.basename(input_path))[0] + ".pdf"
             )
             if process.returncode == 0 and os.path.exists(pdf_path):
                 return pdf_path
@@ -231,10 +218,32 @@ class GoogleDriveProcessor:
                     return True
             return False
         except Exception as e:
-            logger.warning(
-                f"Could not check permissions for file {file_id}: {e}"
-            )
+            logger.warning(f"Could not check permissions for file {file_id}: {e}")
             return False
+
+    def _sanitize_drive_file_url(self, url: Optional[str]) -> Optional[str]:
+        """
+        Removes query parameters and /view, /edit, etc. from Google Drive/Docs/Sheets/Slides URLs,
+        returning a clean link with just the file/folder/document ID.
+        """
+        if not url:
+            return url
+        # Google Drive file
+        match = re.match(r"(https://drive\.google\.com/file/d/[^/]+)", url)
+        if match:
+            return match.group(1)
+        # Google Docs/Sheets/Slides
+        match = re.match(
+            r"(https://docs\.google\.com/(?:document|spreadsheets|presentation)/d/[^/]+)",
+            url,
+        )
+        if match:
+            return match.group(1)
+        # Google Drive folder
+        match = re.match(r"(https://drive\.google\.com/drive/folders/[^/?]+)", url)
+        if match:
+            return match.group(1)
+        return url
 
     def _download_and_upload_file(
         self,
@@ -326,16 +335,12 @@ class GoogleDriveProcessor:
                     logger.info(f"Converted {output_path} to PDF: {pdf_path}")
                     # Upload the PDF instead
                     s3_object_name = os.path.basename(pdf_path)
-                    # remove when you want to upload to root
-                    if self.s3_subfolder:
-                        s3_object_name = (
-                            f"{self.s3_subfolder.rstrip('/')}/{s3_object_name}"
-                        )
+                    sanitized_source_url = self._sanitize_drive_file_url(source_url) if source_url else None
                     upload_success = self.s3_uploader.upload_file(
                         pdf_path,
                         s3_object_name,
                         is_subscriber_content,
-                        source_url=source_url,
+                        source_url=sanitized_source_url,
                         parent_folder_name=parent_folder_name,
                         parent_folder_url=parent_folder_url,
                     )
@@ -358,33 +363,18 @@ class GoogleDriveProcessor:
 
             # Upload all other files to the configured s3_subfolder (no separate type-based folders)
             s3_object_name = f"{name}"
-            # I remove when  want to upload to root
-
-            if self.s3_subfolder:
-                s3_object_name = (
-                    f"{self.s3_subfolder.rstrip('/')}/{s3_object_name}"
-                )
 
             # Check if this is a video file and process it before uploading
             file_ext = os.path.splitext(output_path)[1].lower()
-            if file_ext in [
-                ".mp4",
-                ".avi",
-                ".mov",
-                ".mkv",
-                ".wmv",
-                ".flv",
-                ".webm",
-            ]:
+            if file_ext in [".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm"]:
                 # Process video file with splitting if needed
-                logger.info(
-                    f"Video file detected, checking for processing: {name}"
-                )
+                logger.info(f"Video file detected, checking for processing: {name}")
+                sanitized_source_url = self._sanitize_drive_file_url(source_url) if source_url else None
                 chunked = self.process_video_file(
                     output_path,
                     s3_object_name,
                     is_subscriber_content,
-                    source_url=source_url,
+                    source_url=sanitized_source_url,
                     parent_folder_name=parent_folder_name,
                     parent_folder_url=parent_folder_url,
                 )
@@ -396,18 +386,17 @@ class GoogleDriveProcessor:
                     os.remove(output_path)  # Clean up local file after chunking
                     return output_path
 
+            sanitized_source_url = self._sanitize_drive_file_url(source_url) if source_url else None
             upload_success = self.s3_uploader.upload_file(
                 output_path,
                 s3_object_name,
                 is_subscriber_content,
-                source_url=source_url,
+                source_url=sanitized_source_url,
                 parent_folder_name=parent_folder_name,
                 parent_folder_url=parent_folder_url,
             )
             if upload_success:
-                logger.debug(
-                    f"S3 upload successful for {name}. Removing local file."
-                )
+                logger.debug(f"S3 upload successful for {name}. Removing local file.")
                 os.remove(output_path)  # Clean up local file after upload
             else:
                 logger.error(
@@ -451,9 +440,7 @@ class GoogleDriveProcessor:
             logger.error(f"Error getting video size for {file_path}: {e}")
             return None
 
-    def should_split_video(
-        self, duration_seconds: float, file_size_bytes: int
-    ) -> bool:
+    def should_split_video(self, duration_seconds: float, file_size_bytes: int) -> bool:
         duration_hours = duration_seconds / 3600.0
         file_size_gb = file_size_bytes / (1024**3)
         # Split if duration > 3 hours OR size > 2GB
@@ -469,14 +456,13 @@ class GoogleDriveProcessor:
         file_size_gb = file_size_bytes / (1024**3)
 
         chunks = []
+        MIN_CHUNK_DURATION = 2  # seconds, skip chunks smaller than this
 
         # --- Adaptive Chunker  ---
         # Determine chunk duration based on what creates smaller chunks
         if file_size_gb > SIZE_THRESHOLD_GB:
             # Size-based splitting: ensure each chunk is under 2GB
-            num_chunks_for_size = max(
-                2, int(file_size_gb / MAX_CHUNK_SIZE_GB) + 1
-            )
+            num_chunks_for_size = max(2, int(file_size_gb / MAX_CHUNK_SIZE_GB) + 1)
             chunk_duration_seconds = duration_seconds / num_chunks_for_size
         elif duration_hours > DURATION_THRESHOLD_HOURS:
             # Duration-based splitting: 1.5-hour chunks
@@ -498,9 +484,10 @@ class GoogleDriveProcessor:
             start_time = (part - 1) * chunk_duration_seconds
             if start_time >= duration_seconds:
                 continue
-            chunk_duration = min(
-                chunk_duration_seconds, duration_seconds - start_time
-            )
+            chunk_duration = min(chunk_duration_seconds, duration_seconds - start_time)
+            if chunk_duration < MIN_CHUNK_DURATION:
+                # Skip tiny last chunk
+                continue
             relative_time = cumulative_time
             chunks.append(
                 {
@@ -536,11 +523,12 @@ class GoogleDriveProcessor:
             if not self.should_split_video(duration_seconds, file_size_bytes):
                 logger.info(f"Video {file_path} does not need splitting")
                 # Upload as single file with global timestamp
+                sanitized_source_url = self._sanitize_drive_file_url(source_url) if source_url else None
                 success = self.s3_uploader.upload_file(
                     file_path,
                     s3_key,
                     is_subscriber_content,
-                    source_url=source_url,
+                    source_url=sanitized_source_url,
                     parent_folder_name=parent_folder_name,
                     parent_folder_url=parent_folder_url,
                     relative_start_time=0,  # Always include, even if zero
@@ -572,15 +560,14 @@ class GoogleDriveProcessor:
                 if chunk_file_path:
                     # Create S3 key for chunk
                     base_name = os.path.splitext(s3_key)[0]
-                    chunk_s3_key = (
-                        f"{base_name}_chunk_{chunk['chunk_num']:03d}.mp4"
-                    )
+                    chunk_s3_key = f"{base_name}_chunk_{chunk['chunk_num']:03d}.mp4"
 
+                    sanitized_source_url = self._sanitize_drive_file_url(source_url) if source_url else None
                     chunk_success = self.s3_uploader.upload_file(
                         chunk_file_path,
                         chunk_s3_key,
                         is_subscriber_content,
-                        source_url=source_url,
+                        source_url=sanitized_source_url,
                         parent_folder_name=parent_folder_name,
                         parent_folder_url=parent_folder_url,
                         relative_start_time=int(chunk["relative_time"]),
@@ -607,11 +594,7 @@ class GoogleDriveProcessor:
             return False
 
     def _create_video_chunk(
-        self,
-        input_file: str,
-        start_time: float,
-        duration: float,
-        chunk_num: int,
+        self, input_file: str, start_time: float, duration: float, chunk_num: int
     ) -> Optional[str]:
         # ffmpeg
         try:
@@ -640,9 +623,7 @@ class GoogleDriveProcessor:
                 logger.info(f"Created chunk {chunk_num}: {output_file}")
                 return output_file
             else:
-                logger.error(
-                    f"ffmpeg failed for chunk {chunk_num}: {result.stderr}"
-                )
+                logger.error(f"ffmpeg failed for chunk {chunk_num}: {result.stderr}")
                 return None
 
         except Exception as e:
@@ -665,9 +646,7 @@ class GoogleDriveProcessor:
 
         # Get current folder's name and URL
         current_folder_name = self._get_folder_name(folder_id)
-        current_folder_url = (
-            f"https://drive.google.com/drive/folders/{folder_id}"
-        )
+        current_folder_url = f"https://drive.google.com/drive/folders/{folder_id}"
 
         items_in_folder = self._list_files_in_folder(folder_id)
         files = [
@@ -690,13 +669,8 @@ class GoogleDriveProcessor:
             file_groups_by_normalized_name[normalized_name].append(file_item)
 
         # Process files within the current folder, applying MP4 dominance
-        for (
-            normalized_name,
-            group_files,
-        ) in file_groups_by_normalized_name.items():
-            has_mp4_in_group = any(
-                f["mimeType"] == "video/mp4" for f in group_files
-            )
+        for normalized_name, group_files in file_groups_by_normalized_name.items():
+            has_mp4_in_group = any(f["mimeType"] == "video/mp4" for f in group_files)
 
             for file_item in group_files:
                 file_mime_type = file_item["mimeType"]
@@ -749,22 +723,19 @@ class GoogleDriveProcessor:
 def main():
     service_account_json_data = None
 
-    logger.debug("Starting main function for Google Drive processing.")
+    logger.debug(f"Starting main function for Google Drive processing.")
     # Load config and get env file path
-    with open("config.yaml", "r") as f:
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    config_path = os.path.join(project_root, "config.yaml")
+    with open(config_path, "r") as f:
         config = yaml.safe_load(f)
     env_file = config.get("env_file", "names.env")
     env_vars = dotenv_values(env_file)
-    logger.debug(
-        f"Loaded environment variables from {env_file}: {list(env_vars.keys())}"
-    )
+    logger.debug(f"Loaded environment variables from {env_file}: {list(env_vars.keys())}")
 
     s3_bucket_name = config["s3_bucket_name"]
     aws_region = config.get("aws_region", "us-west-2")
-    download_dir = config.get(
-        "google_drive_download_dir", "google_drive_downloads"
-    )
-    s3_subfolder = config.get("s3_subfolder", "").strip()
+    download_dir = config.get("google_drive_download_dir", "google_drive_downloads")
 
     service_account_json_path = env_vars.get("GOOGLE_DRIVE_CREDENTIALS")
     logger.debug(
@@ -778,6 +749,7 @@ def main():
             f"Successfully loaded Google Service Account JSON from file: {service_account_json_path}"
         )
 
+
     # Convert the loaded JSON data back to a string for the credential constructor
     service_account_json_content_string = json.dumps(service_account_json_data)
     logger.debug(
@@ -786,10 +758,7 @@ def main():
 
     s3_uploader = S3Uploader(bucket_name=s3_bucket_name, region_name=aws_region)
     drive_processor = GoogleDriveProcessor(
-        service_account_json_content_string,
-        s3_uploader,
-        download_dir,
-        s3_subfolder,
+        service_account_json_content_string, s3_uploader, download_dir
     )
 
     # Read URLs from long_video.csv
@@ -817,19 +786,13 @@ def main():
     google_drive_urls_to_process = []
     for index, row in assets_df.iterrows():
         url = str(row["url"]).strip()
-        is_subscriber = (
-            str(row["is_subscriber_content"]).strip().lower() == "true"
-        )
+        is_subscriber = str(row["is_subscriber_content"]).strip().lower() == "true"
 
         # Attempt to get folder ID to confirm it's a Google Drive folder URL
         try:
             folder_id = drive_processor._get_folder_id(url)
             google_drive_urls_to_process.append(
-                {
-                    "url": url,
-                    "is_subscriber": is_subscriber,
-                    "folder_id": folder_id,
-                }
+                {"url": url, "is_subscriber": is_subscriber, "folder_id": folder_id}
             )
         except ValueError:
             logger.warning(f"Skipping non-Google Drive URL from CSV: {url}")
@@ -839,9 +802,7 @@ def main():
         logger.info("No Google Drive folder URLs found in .csv. Exiting.")
         return
 
-    logger.info(
-        f"Found {len(google_drive_urls_to_process)} Google Drive folders to process."
-    )
+    logger.info(f"Found {len(google_drive_urls_to_process)} Google Drive folders to process.")
 
     # Process each Google Drive URL
     for item in google_drive_urls_to_process:
@@ -849,15 +810,11 @@ def main():
         is_subscriber = item["is_subscriber"]
         folder_id = item["folder_id"]
 
-        logger.info(
-            f"\nProcessing Google Drive folder: {url} (Subscriber: {is_subscriber})"
-        )
+        logger.info(f"\nProcessing Google Drive folder: {url} (Subscriber: {is_subscriber})")
 
         try:
             # Initiate recursive processing for the top-level folder
-            drive_processor._process_folder_recursively(
-                folder_id, is_subscriber
-            )
+            drive_processor._process_folder_recursively(folder_id, is_subscriber)
 
         except Exception as e:
             logger.error(f"An unexpected error occurred for URL {url}: {e}")
