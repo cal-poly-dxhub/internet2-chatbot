@@ -180,8 +180,16 @@ python run_step_function.py --reset-cache
 ```
 
 ### Step 7: Test (Can Start Immediately)
+Command line interface:
 ```bash
-python chat_test.py
+python3 chat_test.py
+```
+
+OR
+
+Web interface:
+```bash
+streamlit run chat_frontend.py
 ```
 **Note**: You can start testing immediately after Step 6, but response quality will improve as more documents are processed. Wait for full ingestion completion for best results.
 
