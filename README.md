@@ -134,6 +134,10 @@ sudo apt-get install libreoffice
 
 **5. Configure Environment:**
 ```bash
+# Go into the code directory
+cd ingest_utils
+cd confluence_processor
+
 # Create and edit names.env file
 cp names.env.example names.env
 
@@ -163,6 +167,7 @@ python confluence_event_descriptions_to_s3.py
 
 ### Step 6: Run Document Processing
 ```bash
+# Make sure you are in the ingest_utils directory
 cd ingest_utils
 python3 run_step_function.py
 ```
