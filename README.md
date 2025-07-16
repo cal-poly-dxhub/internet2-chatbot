@@ -182,7 +182,7 @@ python run_step_function.py --reset-cache
 ### Step 7: Test (Can Start Immediately)
 Command line interface:
 ```bash
-python3 chat_test.py
+python chat_test.py
 ```
 
 OR
