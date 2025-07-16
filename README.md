@@ -138,11 +138,10 @@ sudo apt-get install libreoffice
 cp names.env.example names.env
 
 # Set these variables in names.env:
-CONFLUENCE_API=your_atlassian_api_token_from_step_1
+SERVICE_ACC_SECRET_NAME=default-service-account-name
 GOOGLE_DRIVE_CREDENTIALS=/path/to/your/service-account.json
-S3_BUCKET_NAME=your-bucket-name
-S3_SUBFOLDER=files-to-process
-CONFLUENCE_URL=your-confluence-url
+GOOGLE_API_KEY=your-google-api-key
+CONFLUENCE_API=your_atlassian_api_token_from_step_1
 # Load environment variables
 source names.env
 ```
