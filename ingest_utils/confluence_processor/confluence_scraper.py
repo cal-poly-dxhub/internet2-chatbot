@@ -2,8 +2,8 @@ import os
 from typing import Dict, List
 from urllib.parse import urljoin, urlparse
 
-import requests
-from bs4 import BeautifulSoup
+import requests #type:ignore
+from bs4 import BeautifulSoup #type: ignore
 
 
 class ConfluenceScraper:

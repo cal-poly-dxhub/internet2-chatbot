@@ -1,7 +1,7 @@
 import os
 from typing import Optional
 
-import boto3
+import boto3 #type: ignore
 
 
 class S3Uploader:

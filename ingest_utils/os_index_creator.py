@@ -3,9 +3,9 @@ Script to check if an opensearch index exists.
 Creates index if it does not already exist.
 """
 
-import boto3
+import boto3 # type: ignore
 import yaml
-from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection
+from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection # type: ignore
 
 config = yaml.safe_load(open("../config.yaml"))
 service = "aoss"

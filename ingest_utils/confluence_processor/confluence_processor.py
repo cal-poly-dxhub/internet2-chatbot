@@ -2,9 +2,9 @@ import os
 import re
 from typing import Optional
 
-import pandas as pd
-import requests
-import yaml  # type: ignore
+import pandas as pd #type: ignore
+import requests #type: ignore
+import yaml  #type: ignore
 from confluence_scraper import ConfluenceScraper
 from s3_uploader import S3Uploader
 
@@ -51,7 +51,8 @@ def download_file(url: str, output_path: str) -> Optional[str]:
 
 def main():
     # Load config from config.yaml
-    with open("config.yaml", "r") as f:
+    config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "config.yaml")
+    with open(config_path, "r") as f:
         config = yaml.safe_load(f)
 
     confluence_url = config["confluence_url"]
