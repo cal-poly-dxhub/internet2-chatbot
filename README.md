@@ -64,7 +64,7 @@ Thanks for your interest in our solution.  Having specific examples of replicati
 ```bash
 git clone https://github.com/cal-poly-dxhub/internet2-chatbot.git
 cd internet2-chatbot
-python3 -m venv .venv
+python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 mv example_config.yaml config.yaml
@@ -169,19 +169,19 @@ python confluence_event_descriptions_to_s3.py
 ```bash
 # Make sure you are in the ingest_utils directory
 cd ingest_utils
-python3 run_step_function.py
+python run_step_function.py
 ```
 This automatically creates the OpenSearch index if needed, then starts document processing.
 
 **Note:** Files set for processing are saved to DynamoDB to ensure there are no lost updates due to concurrent operations. To reset this cache run:
 
 ```bash
-python3 run_step_function.py --reset-cache
+python run_step_function.py --reset-cache
 ```
 
 ### Step 7: Test (Can Start Immediately)
 ```bash
-python3 chat_test.py
+python chat_test.py
 ```
 **Note**: You can start testing immediately after Step 6, but response quality will improve as more documents are processed. Wait for full ingestion completion for best results.
 
