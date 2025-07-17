@@ -19,8 +19,8 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # Streamlit App Setup
-st.set_page_config(page_title="Internet ii Chatbot PoC", page_icon="💬 ")
-st.title("Internet ii Chatbot PoC")
+st.set_page_config(page_title="Internet2 Chatbot PoC", page_icon="💬 ")
+st.title("Internet2 Chatbot PoC")
 
 with st.sidebar:
     st.markdown("""
