@@ -15,4 +15,5 @@ google-auth-httplib2
 google-auth-oauthlib
 atlassian-python-api
 types-PyYAML
-
+pymediainfo
+requests
