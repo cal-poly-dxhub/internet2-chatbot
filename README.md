@@ -138,9 +138,6 @@ sudo apt-get install libreoffice
 cd ingest_utils
 cd confluence_processor
 
-# Create and edit names.env file
-cp names.env.example names.env
-
 # Set these variables in names.env:
 SERVICE_ACC_SECRET_NAME=default-service-account-name
 GOOGLE_DRIVE_CREDENTIALS=/path/to/your/service-account.json
