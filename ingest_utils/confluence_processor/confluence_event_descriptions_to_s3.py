@@ -146,3 +146,46 @@ elif event_count == 0:
     print("No valid event rows found in the event table.")
 else:
     print(f"All {event_count} event descriptions uploaded to S3.")
+
+# Now also extract the full Confluence page text and upload to S3 as a .txt file
+
+def get_visible_text(soup):
+    for script in soup(['script', 'style', 'noscript']):
+        script.decompose()
+    text = soup.get_text(separator='\n', strip=True)
+    return text
+
+full_page_text = get_visible_text(soup)
+
+# Prepare metadata for full page text
+full_page_metadata = {
+    "member-content": "false",
+    "source-url": CONFLUENCE_URL,
+}
+
+# Use the URL to generate a filename: confluence_page_<last_path_segment>.txt
+
+def url_to_filename(url):
+    # Extract everything after the last slash (excluding trailing slash)
+    last_segment = url.rstrip('/').split('/')[-1]
+    # Fallback if empty
+    if not last_segment:
+        last_segment = 'root'
+    # Sanitize for filesystem
+    last_segment = re.sub(r'[^A-Za-z0-9_\-\+]', '_', last_segment)
+    return f"Confluence_Page_{last_segment}.txt"
+
+full_page_filename = url_to_filename(CONFLUENCE_URL)
+full_page_file = os.path.join(DOWNLOAD_DIR, full_page_filename)
+with open(full_page_file, 'w', encoding='utf-8') as f:
+    f.write(f"Source URL: {CONFLUENCE_URL}\nmember_content: false\n\n")
+    f.write(full_page_text)
+
+# S3 key for full page text
+full_page_s3_key = f"{S3_SUBFOLDER}/{full_page_filename}" if S3_SUBFOLDER else full_page_filename
+
+print(f"Uploading {full_page_filename} to s3://{S3_BUCKET}/{full_page_s3_key}")
+s3_client.upload_file(
+    full_page_file, S3_BUCKET, full_page_s3_key, ExtraArgs={"Metadata": full_page_metadata}
+)
+os.remove(full_page_file)
