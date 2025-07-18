@@ -14,7 +14,7 @@ EMBEDDINGS_MODEL_ID = os.getenv("EMBEDDINGS_MODEL_ID")
 PROCESSED_FILES_TABLE = os.getenv("PROCESSED_FILES_TABLE")
 
 # Get chunk size and overlap from environment variables, with fallback defaults
-CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "500"))  # in characters
+CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "40000"))  # in characters
 OVERLAP = float(os.getenv("OVERLAP", "0.1"))  # overlap percentage
 
 client = boto3.client("bedrock-runtime")
@@ -184,6 +184,7 @@ def is_file_processed(s3_uri):
         print(f"Error checking if file is processed: {str(e)}")
         return False
 
+
 def mark_file_processed(s3_uri):
     """Mark a file as processed in DynamoDB"""
     try:
@@ -191,7 +192,7 @@ def mark_file_processed(s3_uri):
             Item={
                 "s3_uri": s3_uri,
                 "timestamp": int(time.time()),
-                "processor": "text_lambda"
+                "processor": "text_lambda",
             }
         )
         print(f"Marked {s3_uri} as processed in DynamoDB")
@@ -202,15 +203,17 @@ def mark_file_processed(s3_uri):
 def lambda_handler(event, context):
     try:
         s3_uri = event["s3_uri"]
-        
+
         # Check if file has already been processed
         if is_file_processed(s3_uri):
             print(f"File {s3_uri} has already been processed. Skipping.")
             return {
                 "statusCode": 200,
-                "body": json.dumps({"message": "File already processed", "s3_uri": s3_uri})
+                "body": json.dumps(
+                    {"message": "File already processed", "s3_uri": s3_uri}
+                ),
             }
-            
+
         metadata = get_s3_metadata(s3_uri)
 
         text = get_text_from_s3_uri(s3_uri)

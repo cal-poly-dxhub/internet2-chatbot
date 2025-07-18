@@ -23,7 +23,7 @@ file_input_folder: files-to-process/
 bucket_image_folder: image_store/
 
 # For text file ingestion
-chunk_size: "500" # In number of characters, must be a string
+chunk_size: "40000" # In number of characters, must be a string
 overlap: "0.1" # Overlap percentage (0.1 = 10%), must be a string
 
 # The Bedrock Model IDs for each function
