@@ -37,7 +37,7 @@ def get_conversation_history(session_id: str) -> List[Dict[str, str]]:
 
 
 def save_message(
-    session_id: str, role: str, content: str, document_ids: List[str] = None
+    session_id: str, role: str, content: str, document_ids: List[str] = None, conversation_turn: str = None
 ) -> int:
     """Save a message to conversation history and return timestamp."""
     table = dynamodb.Table(os.getenv("CONVERSATION_TABLE"))
@@ -52,6 +52,9 @@ def save_message(
 
     if document_ids:
         item["document_ids"] = document_ids
+    
+    if conversation_turn:
+        item["conversation_turn"] = conversation_turn
 
     table.put_item(Item=item)
     return timestamp
@@ -432,10 +435,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Extract document IDs for storage
         document_ids = extract_document_ids(selected_docs)
 
+        # Generate conversation turn ID to link Q&A pair
+        conversation_turn = str(uuid.uuid4())
+
         # Save conversation to history
-        save_message(session_id, "user", user_query)
+        save_message(session_id, "user", user_query, None, conversation_turn)
         assistant_timestamp = save_message(
-            session_id, "assistant", final_response, document_ids
+            session_id, "assistant", final_response, document_ids, conversation_turn
         )
 
         return {
