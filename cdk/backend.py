@@ -116,6 +116,32 @@ class RagBackend(Construct):
         # Attach inline policy to the Lambda role
         chat_lambda.role.add_to_policy(opensearch_policy)
 
+        # Define the Lambda function for feedback
+        feedback_lambda = _lambda.Function(
+            self,
+            "FeedbackHandler",
+            runtime=_lambda.Runtime.PYTHON_3_13,
+            code=_lambda.Code.from_asset(
+                "src/backend",
+                bundling=BundlingOptions(
+                    image=_lambda.Runtime.PYTHON_3_13.bundling_image,
+                    command=[
+                        "bash",
+                        "-c",
+                        "pip install --platform manylinux2014_x86_64 --implementation cp --python-version 3.13 --only-binary=:all: --target /asset-output -r requirements.txt && cp -au . /asset-output",
+                    ],
+                ),
+            ),
+            handler="feedback.feedback_handler",
+            timeout=Duration.seconds(30),
+            environment={
+                "CONVERSATION_TABLE": conversation_table.table_name,
+            },
+        )
+
+        # Grant DynamoDB permissions to feedback lambda
+        conversation_table.grant_read_write_data(feedback_lambda)
+
         #################################################################################
         # CDK FOR API
         #################################################################################
@@ -127,15 +153,46 @@ class RagBackend(Construct):
             description="API Gateway to be served by a lambda",
         )
 
-        # Create a resource and method
-        resource = api.root.add_resource("chat-response")
-        integration = apigw.LambdaIntegration(chat_lambda, proxy=True)
+        # Create chat-response resource and method
+        chat_resource = api.root.add_resource("chat-response")
+        chat_integration = apigw.LambdaIntegration(chat_lambda, proxy=True)
+        chat_resource.add_method("POST", chat_integration)
 
-        # Add method to the resource
-        resource.add_method("POST", integration)
+        # Create feedback resource and method
+        feedback_resource = api.root.add_resource("feedback")
+        feedback_integration = apigw.LambdaIntegration(feedback_lambda, proxy=True)
+        feedback_resource.add_method("POST", feedback_integration)
 
-        # Add CORS support
-        resource.add_method(
+        # Add CORS support for chat-response
+        chat_resource.add_method(
+            "OPTIONS",
+            apigw.MockIntegration(
+                integration_responses=[
+                    apigw.IntegrationResponse(
+                        status_code="200",
+                        response_parameters={
+                            "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'",
+                            "method.response.header.Access-Control-Allow-Origin": "'*'",
+                            "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'",
+                        },
+                    )
+                ],
+                request_templates={"application/json": '{"statusCode": 200}'},
+            ),
+            method_responses=[
+                apigw.MethodResponse(
+                    status_code="200",
+                    response_parameters={
+                        "method.response.header.Access-Control-Allow-Headers": True,
+                        "method.response.header.Access-Control-Allow-Origin": True,
+                        "method.response.header.Access-Control-Allow-Methods": True,
+                    },
+                )
+            ],
+        )
+
+        # Add CORS support for feedback
+        feedback_resource.add_method(
             "OPTIONS",
             apigw.MockIntegration(
                 integration_responses=[

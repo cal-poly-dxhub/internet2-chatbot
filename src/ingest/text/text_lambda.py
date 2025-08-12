@@ -14,7 +14,7 @@ EMBEDDINGS_MODEL_ID = os.getenv("EMBEDDINGS_MODEL_ID")
 PROCESSED_FILES_TABLE = os.getenv("PROCESSED_FILES_TABLE")
 
 # Get chunk size and overlap from environment variables, with fallback defaults
-CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "40000"))  # in characters
+CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "20000"))  # in characters
 OVERLAP = float(os.getenv("OVERLAP", "0.1"))  # overlap percentage
 
 client = boto3.client("bedrock-runtime")

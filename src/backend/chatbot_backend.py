@@ -7,6 +7,7 @@ import uuid
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import boto3
+from boto3.dynamodb.conditions import Key
 from opensearch_query import generate_short_uuid, get_documents
 from search_utils import generate_text_embedding
 
@@ -21,8 +22,7 @@ def get_conversation_history(session_id: str) -> List[Dict[str, str]]:
     table = dynamodb.Table(os.getenv("CONVERSATION_TABLE"))
 
     response = table.query(
-        KeyConditionExpression="session_id = :sid",
-        ExpressionAttributeValues={":sid": session_id},
+        KeyConditionExpression=Key("session_id").eq(session_id),
         ScanIndexForward=False,
         Limit=10,  # Get 10 to have 5 pairs (user + assistant)
     )
@@ -35,18 +35,32 @@ def get_conversation_history(session_id: str) -> List[Dict[str, str]]:
     return list(reversed(messages[-5:]))
 
 
-def save_message(session_id: str, role: str, content: str) -> None:
-    """Save a message to conversation history."""
+def save_message(session_id: str, role: str, content: str, document_ids: List[str] = None) -> int:
+    """Save a message to conversation history and return timestamp."""
     table = dynamodb.Table(os.getenv("CONVERSATION_TABLE"))
 
-    table.put_item(
-        Item={
-            "session_id": session_id,
-            "timestamp": int(time.time() * 1000),
-            "role": role,
-            "content": content,
-        }
-    )
+    timestamp = int(time.time() * 1000)
+    item = {
+        "session_id": session_id,
+        "timestamp": timestamp,
+        "role": role,
+        "content": content,
+    }
+    
+    if document_ids:
+        item["document_ids"] = document_ids
+    
+    table.put_item(Item=item)
+    return timestamp
+
+
+def extract_document_ids(documents: List[Dict[str, Any]]) -> List[str]:
+    """Extract document IDs from OpenSearch results."""
+    doc_ids = []
+    for doc in documents:
+        if doc.get("_id"):
+            doc_ids.append(doc["_id"])
+    return doc_ids
 
 
 def build_conversation_context(
@@ -135,9 +149,9 @@ def process_text(
     uuid_pattern = r"<([a-f0-9]{8})>"
 
     def replace_uuid(match: re.Match[str]) -> str:
-        uuid = match.group(1)
-        source_data = uuid_mapping.get(uuid)
-        metadata_info = metadata_mapping.get(uuid)
+        uuid_match = match.group(1)
+        source_data = uuid_mapping.get(uuid_match)
+        metadata_info = metadata_mapping.get(uuid_match)
 
         if source_data and metadata_info:
             source_url = source_data["source_url"]
@@ -363,21 +377,23 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         # Create simplified mapping for LLM prompt (only UUIDs and source URLs)
         simplified_mapping: Dict[str, str] = {}
-        for uuid, data in source_mapping.items():
-            simplified_mapping[uuid] = data["source_url"]
+        for uuid_key, data in source_mapping.items():
+            simplified_mapping[uuid_key] = data["source_url"]
 
         # Include conversation history in prompt
         history_context = ""
         if history:
-            history_context = "Previous conversation:\n"
+            history_context += "<conversation_history>"
             for msg in history[-4:]:  # Last 4 messages for context
                 history_context += f"{msg['role'].title()}: {msg['content']}\n"
             history_context += "\n"
+            history_context += "</conversation_history>"
 
         prompt: str = (
             history_context
             + "User: "
             + user_query
+            + "\n"
             + os.getenv("CHAT_PROMPT").format(
                 documents=formatted_docs, citations=str(simplified_mapping)
             )
@@ -403,14 +419,23 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             meeting_response, source_mapping, metadata_mapping
         )
 
+        # Extract document IDs for storage
+        document_ids = extract_document_ids(selected_docs)
+
         # Save conversation to history
         save_message(session_id, "user", user_query)
-        save_message(session_id, "assistant", final_response)
+        assistant_timestamp = save_message(
+            session_id, "assistant", final_response, document_ids
+        )
 
         return {
             "statusCode": 200,
             "body": json.dumps(
-                {"response": final_response, "session_id": session_id}
+                {
+                    "response": final_response,
+                    "session_id": session_id,
+                    "timestamp": assistant_timestamp,
+                }
             ),
         }
 
