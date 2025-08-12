@@ -18,21 +18,22 @@ dynamodb = boto3.resource("dynamodb")
 
 
 def get_conversation_history(session_id: str) -> List[Dict[str, str]]:
-    """Get last 5 messages from conversation history."""
+    """Get conversation history based on config limits."""
     table = dynamodb.Table(os.getenv("CONVERSATION_TABLE"))
+    max_turns = int(os.getenv("CONVERSATION_HISTORY_TURNS", "4"))
 
     response = table.query(
         KeyConditionExpression=Key("session_id").eq(session_id),
         ScanIndexForward=False,
-        Limit=10,  # Get 10 to have 5 pairs (user + assistant)
+        Limit=max_turns * 2,  # Get turns * 2 to have user + assistant pairs
     )
 
     messages = []
     for item in response["Items"]:
         messages.append({"role": item["role"], "content": item["content"]})
 
-    # Return last 5 messages (reverse to chronological order)
-    return list(reversed(messages[-5:]))
+    # Return last messages (reverse to chronological order)
+    return list(reversed(messages[-max_turns:]))
 
 
 def save_message(session_id: str, role: str, content: str, document_ids: List[str] = None) -> int:
@@ -383,9 +384,19 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Include conversation history in prompt
         history_context = ""
         if history:
+            max_chars = int(os.getenv("MAX_HISTORY_CHARACTERS", "100000"))
+            max_turns = int(os.getenv("CONVERSATION_HISTORY_TURNS", "4"))
+            
             history_context += "<conversation_history>"
-            for msg in history[-4:]:  # Last 4 messages for context
-                history_context += f"{msg['role'].title()}: {msg['content']}\n"
+            current_length = 0
+            
+            for msg in history[-max_turns:]:  # Use config value for turns
+                msg_text = f"{msg['role'].title()}: {msg['content']}\n"
+                if current_length + len(msg_text) > max_chars:
+                    break
+                history_context += msg_text
+                current_length += len(msg_text)
+            
             history_context += "\n"
             history_context += "</conversation_history>"
 

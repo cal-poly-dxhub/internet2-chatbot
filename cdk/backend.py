@@ -31,6 +31,8 @@ class RagBackend(Construct):
         embedding_model: str,
         chat_prompt: str,
         bucket_arn: str,
+        conversation_history_turns: int = 4,
+        max_history_characters: int = 100000,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -78,6 +80,8 @@ class RagBackend(Construct):
                 "EMBEDDING_MODEL_ID": embedding_model,
                 "CHAT_PROMPT": chat_prompt,
                 "CONVERSATION_TABLE": conversation_table.table_name,
+                "CONVERSATION_HISTORY_TURNS": str(conversation_history_turns),
+                "MAX_HISTORY_CHARACTERS": str(max_history_characters),
             },
         )
 

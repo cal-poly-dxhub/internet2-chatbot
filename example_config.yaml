@@ -8,6 +8,10 @@ processed_files_table: <your-dynamodb-table-name>
 api_key: <your-api-key>
 aws_region: <your-aws-region>
 
+# Chat configuration
+conversation_history_turns: 4 # Max chat turns for history (user/assistant pairs)
+max_history_characters: 100000 # In number of characters
+
 # Ingest
 max_concurrency: 3 # This will depend on account limits (vcpu quota / 8)
 step_function_timeout_hours: 24 # Depends on amount of data, generally assume an hour of processing per 30 hours of video.

@@ -25,6 +25,8 @@ class RagChatbotStack(Stack):
         step_function_timeout_hours: int,
         chunk_size: str,
         overlap: str,
+        conversation_history_turns: int = 4,
+        max_history_characters: int = 100000,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -52,4 +54,6 @@ class RagChatbotStack(Stack):
             embedding_model=embedding_model,
             chat_prompt=chat_prompt,
             bucket_arn=ingest_stack.bucket_arn,
+            conversation_history_turns=conversation_history_turns,
+            max_history_characters=max_history_characters,
         )
