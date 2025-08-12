@@ -13,7 +13,7 @@ API_KEY = config["api_key"]
 
 def display_response(raw_text: str):
     # Decode escaped characters like \n and \"
-    decoded_text = raw_text.encode().decode("unicode_escape").replace('"', "")
+    decoded_text = raw_text.encode('utf-8').decode('utf-8').replace('"', "")
     st.markdown(decoded_text)
 
 
