@@ -1,5 +1,7 @@
+import json
 import requests
 import streamlit as st
+import uuid
 import yaml
 
 config = yaml.safe_load(open("./config.yaml"))
@@ -14,9 +16,11 @@ def display_response(raw_text: str):
     st.markdown(decoded_text)
 
 
-# Session state to hold conversation history
+# Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
 
 # Streamlit App Setup
 st.set_page_config(page_title="Internet2 Chatbot PoC", page_icon="💬 ")
@@ -32,9 +36,15 @@ with st.sidebar:
     - How do I convince my leadership of the importance of FinOps practices?
     - Who has a Cloud Center of Excellence?
     - How are people doing account provisioning?
-    - I’ve got a consultant coming in to install Control Tower for us, but they don’t have any higher ed experience. What questions should I be asking to make sure I don’t have to redo the work later?
+    - I've got a consultant coming in to install Control Tower for us, but they don't have any higher ed experience. What questions should I be asking to make sure I don't have to redo the work later?
     - Do I have to set up a cloud networking architecture for each platform or is there a single strategy to rule them all?
     """)
+    
+    # Add session reset button
+    if st.button("New Conversation"):
+        st.session_state.messages = []
+        st.session_state.session_id = str(uuid.uuid4())
+        st.rerun()
 
 
 # Display the chat messages
@@ -53,13 +63,20 @@ if user_input:
     with st.chat_message("user"):
         display_response(user_input)
 
-    # Send to API
+    # Send to API with session ID
     headers = {"x-api-key": API_KEY}
-    data = {"query": user_input}
+    data = {
+        "query": user_input,
+        "session_id": st.session_state.session_id
+    }
     try:
         response = requests.post(API_URL, json=data, headers=headers)
         response.raise_for_status()
-        bot_reply = response.text
+        response_data = json.loads(response.text)
+        bot_reply = response_data.get("response", response.text)
+        # Update session ID if provided
+        if "session_id" in response_data:
+            st.session_state.session_id = response_data["session_id"]
     except Exception as e:
         bot_reply = f"Error: {e}"
 

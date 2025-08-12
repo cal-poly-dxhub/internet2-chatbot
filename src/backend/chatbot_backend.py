@@ -2,6 +2,8 @@ import json
 import logging
 import os
 import re
+import time
+import uuid
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import boto3
@@ -11,8 +13,63 @@ from search_utils import generate_text_embedding
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+dynamodb = boto3.resource("dynamodb")
 
-def invoke_model(prompt: str, model_id: str, max_tokens: int = 4096) -> Optional[str]:
+
+def get_conversation_history(session_id: str) -> List[Dict[str, str]]:
+    """Get last 5 messages from conversation history."""
+    table = dynamodb.Table(os.getenv("CONVERSATION_TABLE"))
+
+    response = table.query(
+        KeyConditionExpression="session_id = :sid",
+        ExpressionAttributeValues={":sid": session_id},
+        ScanIndexForward=False,
+        Limit=10,  # Get 10 to have 5 pairs (user + assistant)
+    )
+
+    messages = []
+    for item in response["Items"]:
+        messages.append({"role": item["role"], "content": item["content"]})
+
+    # Return last 5 messages (reverse to chronological order)
+    return list(reversed(messages[-5:]))
+
+
+def save_message(session_id: str, role: str, content: str) -> None:
+    """Save a message to conversation history."""
+    table = dynamodb.Table(os.getenv("CONVERSATION_TABLE"))
+
+    table.put_item(
+        Item={
+            "session_id": session_id,
+            "timestamp": int(time.time() * 1000),
+            "role": role,
+            "content": content,
+        }
+    )
+
+
+def build_conversation_context(
+    history: List[Dict[str, str]], current_query: str
+) -> str:
+    """Build conversation context from history."""
+    if not history:
+        return current_query
+
+    context_parts = []
+    for msg in history:
+        if msg["role"] == "user":
+            context_parts.append(f"Previous question: {msg['content']}")
+        else:
+            context_parts.append(f"Previous answer: {msg['content']}")
+
+    context_parts.append(f"Current question: {current_query}")
+    return "\n\n".join(context_parts)
+
+
+def invoke_model(
+    prompt: str, model_id: str, max_tokens: int = 4096
+) -> Optional[str]:
     """Calls Bedrock for a given model id.
 
     Args:
@@ -98,7 +155,9 @@ def process_text(
                 return f"[{title}]({url_with_timestamp}) — _{badge}_"
             else:
                 return f"[{title}]({source_url}) — _{badge}_"
-        return match.group(0)  # Return the original match if UUID not found in mappings
+        return match.group(
+            0
+        )  # Return the original match if UUID not found in mappings
 
     # Process valid UUIDs first
     text = re.sub(uuid_pattern, replace_uuid, text)
@@ -109,7 +168,9 @@ def process_text(
     return text
 
 
-def add_meeting_list(text: str, metadata_mapping: Dict[str, Dict[str, Any]]) -> str:
+def add_meeting_list(
+    text: str, metadata_mapping: Dict[str, Dict[str, Any]]
+) -> str:
     """Add formatted meeting list to end of text based on UUIDs referenced.
 
     Args:
@@ -149,18 +210,24 @@ def add_meeting_list(text: str, metadata_mapping: Dict[str, Dict[str, Any]]) -> 
     referenced_uuids = set(re.findall(uuid_pattern, text))
 
     # Only include meetings for UUIDs that were referenced in the response
-    for uuid in referenced_uuids:
-        metadata = metadata_mapping.get(uuid, {})
+    for uuid_match in referenced_uuids:
+        metadata = metadata_mapping.get(uuid_match, {})
         parent_folder_name = metadata.get("parent_folder_name", "")
         parent_folder_url = metadata.get("parent_folder_url", "")
         member_content = metadata.get("member_content_flag", "")
         if parent_folder_name and parent_folder_url:
-            meetings.add((parent_folder_name, parent_folder_url, member_content))
+            meetings.add(
+                (parent_folder_name, parent_folder_url, member_content)
+            )
 
     if meetings:
         text += "\n\n**Meetings referenced:**\n"
         for folder_name, meeting_url, member_content in sorted(meetings):
-            badge = "*[Subscriber-only]*" if member_content == "true" else "*[Public]*"
+            badge = (
+                "*[Subscriber-only]*"
+                if member_content == "true"
+                else "*[Public]*"
+            )
             text += f"- [{folder_name}]({meeting_url}) — {badge}\n"
 
     return text
@@ -197,7 +264,9 @@ def extract_metadata_for_substitution(
     metadata_mapping: Dict[str, Dict[str, Any]] = {}
 
     # Convert source_mapping to a list to maintain order
-    source_items: List[Tuple[str, Dict[str, Any]]] = list(source_mapping.items())
+    source_items: List[Tuple[str, Dict[str, Any]]] = list(
+        source_mapping.items()
+    )
 
     for i, item in enumerate(documents):
         if item.get("_source") and i < len(source_items):
@@ -265,10 +334,19 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         body_data: Dict[str, Any] = json.loads(event["body"])
         user_query: str = body_data["query"]
+        session_id: str = body_data.get("session_id", str(uuid.uuid4()))
 
-        embedding: List[float] = generate_text_embedding(user_query)
+        # Get conversation history
+        history = get_conversation_history(session_id)
 
-        selected_docs: List[Dict[str, Any]] = get_documents(user_query, embedding)
+        # Build context with conversation history
+        contextual_query = build_conversation_context(history, user_query)
+
+        embedding: List[float] = generate_text_embedding(contextual_query)
+
+        selected_docs: List[Dict[str, Any]] = get_documents(
+            contextual_query, embedding
+        )
 
         source_mapping: Dict[str, Dict[str, Any]] = generate_source_mapping(
             selected_docs
@@ -279,8 +357,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         )
 
         # Extract metadata separately for post-processing
-        metadata_mapping: Dict[str, Dict[str, Any]] = extract_metadata_for_substitution(
-            selected_docs, source_mapping
+        metadata_mapping: Dict[str, Dict[str, Any]] = (
+            extract_metadata_for_substitution(selected_docs, source_mapping)
         )
 
         # Create simplified mapping for LLM prompt (only UUIDs and source URLs)
@@ -288,8 +366,17 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         for uuid, data in source_mapping.items():
             simplified_mapping[uuid] = data["source_url"]
 
+        # Include conversation history in prompt
+        history_context = ""
+        if history:
+            history_context = "Previous conversation:\n"
+            for msg in history[-4:]:  # Last 4 messages for context
+                history_context += f"{msg['role'].title()}: {msg['content']}\n"
+            history_context += "\n"
+
         prompt: str = (
-            "User:"
+            history_context
+            + "User: "
             + user_query
             + os.getenv("CHAT_PROMPT").format(
                 documents=formatted_docs, citations=str(simplified_mapping)
@@ -300,19 +387,32 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         logger.info(f"Formatted documents length: {len(str(formatted_docs))}")
         logger.info(f"Prompt length: {len(prompt)}")
 
-        model_response: Optional[str] = invoke_model(prompt, os.getenv("CHAT_MODEL_ID"))
+        model_response: Optional[str] = invoke_model(
+            prompt, os.getenv("CHAT_MODEL_ID")
+        )
 
         logger.info(f"Model: {model_response}")
 
         # Add meeting list at the bottom
-        meeting_response: str = add_meeting_list(model_response, metadata_mapping)
+        meeting_response: str = add_meeting_list(
+            model_response, metadata_mapping
+        )
 
         # Use source mapping and metadata mapping for text processing
         final_response: str = process_text(
             meeting_response, source_mapping, metadata_mapping
         )
 
-        return {"statusCode": 200, "body": json.dumps(final_response)}
+        # Save conversation to history
+        save_message(session_id, "user", user_query)
+        save_message(session_id, "assistant", final_response)
+
+        return {
+            "statusCode": 200,
+            "body": json.dumps(
+                {"response": final_response, "session_id": session_id}
+            ),
+        }
 
     except Exception as e:
         logger.error(f"Error in lambda_handler: {e}")

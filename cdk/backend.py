@@ -2,9 +2,13 @@ from aws_cdk import (
     BundlingOptions,
     CfnOutput,
     Duration,
+    RemovalPolicy,
 )
 from aws_cdk import (
     aws_apigateway as apigw,
+)
+from aws_cdk import (
+    aws_dynamodb as dynamodb,
 )
 from aws_cdk import (
     aws_iam as iam,
@@ -30,6 +34,21 @@ class RagBackend(Construct):
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
+        
+        # Create DynamoDB table for conversation history
+        conversation_table = dynamodb.Table(
+            self,
+            "ConversationHistory",
+            partition_key=dynamodb.Attribute(
+                name="session_id", type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="timestamp", type=dynamodb.AttributeType.NUMBER
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+        
         #################################################################################
         # CDK FOR THE LAMBDA WHICH SERVES THE API
         #################################################################################
@@ -58,6 +77,7 @@ class RagBackend(Construct):
                 "CHAT_MODEL_ID": chat_model,
                 "EMBEDDING_MODEL_ID": embedding_model,
                 "CHAT_PROMPT": chat_prompt,
+                "CONVERSATION_TABLE": conversation_table.table_name,
             },
         )
 
@@ -68,6 +88,9 @@ class RagBackend(Construct):
                 effect=iam.Effect.ALLOW,
             )
         )
+
+        # Grant DynamoDB permissions
+        conversation_table.grant_read_write_data(chat_lambda)
 
         # Attach AWS managed policies
         chat_lambda.role.add_managed_policy(
@@ -168,4 +191,10 @@ class RagBackend(Construct):
             self,
             "OpensearchAPIEndpoint",
             value=opensearch_endpoint,
+        )
+        
+        CfnOutput(
+            self,
+            "ConversationTableName",
+            value=conversation_table.table_name,
         )
