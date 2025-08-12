@@ -36,7 +36,9 @@ def get_conversation_history(session_id: str) -> List[Dict[str, str]]:
     return list(reversed(messages[-max_turns:]))
 
 
-def save_message(session_id: str, role: str, content: str, document_ids: List[str] = None) -> int:
+def save_message(
+    session_id: str, role: str, content: str, document_ids: List[str] = None
+) -> int:
     """Save a message to conversation history and return timestamp."""
     table = dynamodb.Table(os.getenv("CONVERSATION_TABLE"))
 
@@ -47,10 +49,10 @@ def save_message(session_id: str, role: str, content: str, document_ids: List[st
         "role": role,
         "content": content,
     }
-    
+
     if document_ids:
         item["document_ids"] = document_ids
-    
+
     table.put_item(Item=item)
     return timestamp
 
@@ -354,13 +356,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Get conversation history
         history = get_conversation_history(session_id)
 
-        # Build context with conversation history
-        contextual_query = build_conversation_context(history, user_query)
-
-        embedding: List[float] = generate_text_embedding(contextual_query)
+        embedding: List[float] = generate_text_embedding(user_query)
 
         selected_docs: List[Dict[str, Any]] = get_documents(
-            contextual_query, embedding
+            user_query, embedding
         )
 
         source_mapping: Dict[str, Dict[str, Any]] = generate_source_mapping(
@@ -386,17 +385,17 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if history:
             max_chars = int(os.getenv("MAX_HISTORY_CHARACTERS", "100000"))
             max_turns = int(os.getenv("CONVERSATION_HISTORY_TURNS", "4"))
-            
+
             history_context += "<conversation_history>"
             current_length = 0
-            
+
             for msg in history[-max_turns:]:  # Use config value for turns
                 msg_text = f"{msg['role'].title()}: {msg['content']}\n"
                 if current_length + len(msg_text) > max_chars:
                     break
                 history_context += msg_text
                 current_length += len(msg_text)
-            
+
             history_context += "\n"
             history_context += "</conversation_history>"
 
