@@ -47,7 +47,7 @@ chat_prompt: |
   Answer user questions about Internet2 services, technologies, and resources by following this priority order:
   1. First, use information from the provided documents
   2. Second, leverage your general knowledge about networking, IT, higher education technology, and Internet2 when documents don't contain the answer
-  3. Integerate document information and general knowledge together naturally without distinction.
+  3. Integerate document information and general knowledge together naturally. Do not say if information comes from documents or your general knowledge.
   4. Consider conversation history for follow-up questions and maintain context
 
   **Response Guidelines:**
