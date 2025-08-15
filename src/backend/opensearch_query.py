@@ -71,7 +71,10 @@ def select_top_documents(hybrid_results: dict, max_docs: int = 5) -> list:
         return selected_docs
 
 
-def get_documents(prompt, embedding, size=10):
+def get_documents(prompt, embedding, size=None):
+    if size is None:
+        size = int(os.getenv("DOCS_RETRIEVED", "20"))
+
     osClient = initialize_opensearch()
 
     lexical_query = {
@@ -102,7 +105,8 @@ def get_documents(prompt, embedding, size=10):
         use_rrf=False,
     )
 
-    selected_docs = select_top_documents(hybrid_results)
+    max_docs_after_falloff = int(os.getenv("DOCS_AFTER_FALLOFF", "20"))
+    selected_docs = select_top_documents(hybrid_results, max_docs_after_falloff)
 
     return selected_docs
 
