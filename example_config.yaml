@@ -17,8 +17,8 @@ max_concurrency: 3 # This will depend on account limits (vcpu quota / 8)
 step_function_timeout_hours: 24 # Depends on amount of data, generally assume an hour of processing per 30 hours of video.
 opensearch_index_name: chatbot-vs
 opensearch_collection_name: rag-vs
-docs_retrieved: 10 # Number of documents taken from knowledge base
-docs_after_falloff: 5 # Max number of documents sent to llm after falloff
+docs_retrieved: 20 # Number of documents taken from knowledge base
+docs_after_falloff: 20 # Max number of documents sent to LLM after falloff
 
 # Confluence and GDrive
 confluence_url: <your-confluence-url>
