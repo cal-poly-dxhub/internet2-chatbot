@@ -23,6 +23,8 @@ RagChatbotStack(
     step_function_timeout_hours=int(config["step_function_timeout_hours"]),
     chunk_size=config["chunk_size"],
     overlap=config["overlap"],
+    docs_retrieved=int(config["docs_retrieved"]),
+    docs_after_falloff=int(config["docs_after_falloff"]),
     conversation_history_turns=int(config["conversation_history_turns"]),
     max_history_characters=int(config["max_history_characters"]),
 )

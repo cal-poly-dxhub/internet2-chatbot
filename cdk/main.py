@@ -25,6 +25,8 @@ class RagChatbotStack(Stack):
         step_function_timeout_hours: int,
         chunk_size: str,
         overlap: str,
+        docs_retrieved: int,
+        docs_after_falloff: int,
         conversation_history_turns: int = 4,
         max_history_characters: int = 100000,
         **kwargs,
@@ -54,6 +56,8 @@ class RagChatbotStack(Stack):
             embedding_model=embedding_model,
             chat_prompt=chat_prompt,
             bucket_arn=ingest_stack.bucket_arn,
+            docs_retrieved=docs_retrieved,
+            docs_after_falloff=docs_after_falloff,
             conversation_history_turns=conversation_history_turns,
             max_history_characters=max_history_characters,
         )
