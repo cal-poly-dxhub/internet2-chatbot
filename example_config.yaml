@@ -109,6 +109,14 @@ platform_classifier_prompt: |
 document_filter_prompt: |
   Given this list of document titles, return only the titles that are NOT related to the specified platform.
 
+  For example if a user asks about platform AWS, remove documents relating to:
+  1. Azure
+  2. GCP
+  3. IBM Cloud
+  4. Salesforce
+  5. Oracle
+  Keep all other documents.
+
   Platform: {platform}
 
   Document titles:
