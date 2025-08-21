@@ -16,6 +16,9 @@ from aws_cdk import (
 from aws_cdk import (
     aws_lambda as _lambda,
 )
+from aws_cdk import (
+    aws_ssm as ssm,
+)
 from constructs import Construct
 
 
@@ -30,6 +33,10 @@ class RagBackend(Construct):
         chat_model: str,
         embedding_model: str,
         chat_prompt: str,
+        classifier_model: str,
+        document_filter_model: str,
+        platform_classifier_prompt: str,
+        document_filter_prompt: str,
         bucket_arn: str,
         docs_retrieved: int,
         docs_after_falloff: int,
@@ -38,6 +45,25 @@ class RagBackend(Construct):
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
+        
+        # Create Parameter Store entries for prompts
+        chat_prompt_param = ssm.StringParameter(
+            self, "ChatPromptParameter",
+            parameter_name="/chatbot/prompts/chat",
+            string_value=chat_prompt
+        )
+        
+        classifier_prompt_param = ssm.StringParameter(
+            self, "ClassifierPromptParameter", 
+            parameter_name="/chatbot/prompts/classifier",
+            string_value=platform_classifier_prompt
+        )
+        
+        filter_prompt_param = ssm.StringParameter(
+            self, "FilterPromptParameter",
+            parameter_name="/chatbot/prompts/filter", 
+            string_value=document_filter_prompt
+        )
         
         # Create DynamoDB table for conversation history
         conversation_table = dynamodb.Table(
@@ -80,13 +106,26 @@ class RagBackend(Construct):
                 "OPENSEARCH_INDEX": opensearch_index_name,
                 "CHAT_MODEL_ID": chat_model,
                 "EMBEDDING_MODEL_ID": embedding_model,
-                "CHAT_PROMPT": chat_prompt,
+                "CLASSIFIER_MODEL_ID": classifier_model,
+                "DOCUMENT_FILTER_MODEL_ID": document_filter_model,
                 "CONVERSATION_TABLE": conversation_table.table_name,
                 "DOCS_RETRIEVED": str(docs_retrieved),
                 "DOCS_AFTER_FALLOFF": str(docs_after_falloff),
                 "CONVERSATION_HISTORY_TURNS": str(conversation_history_turns),
                 "MAX_HISTORY_CHARACTERS": str(max_history_characters),
             },
+        )
+
+        # Add SSM permissions
+        chat_lambda.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["ssm:GetParameter"],
+                resources=[
+                    chat_prompt_param.parameter_arn,
+                    classifier_prompt_param.parameter_arn,
+                    filter_prompt_param.parameter_arn
+                ]
+            )
         )
 
         chat_lambda.add_to_role_policy(

@@ -15,6 +15,18 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 dynamodb = boto3.resource("dynamodb")
+ssm = boto3.client("ssm")
+
+# Cache for prompts
+_prompt_cache = {}
+
+
+def get_prompt(param_name: str) -> str:
+    """Get prompt from Parameter Store with caching."""
+    if param_name not in _prompt_cache:
+        response = ssm.get_parameter(Name=param_name)
+        _prompt_cache[param_name] = response["Parameter"]["Value"]
+    return _prompt_cache[param_name]
 
 
 def get_conversation_history(session_id: str) -> List[Dict[str, str]]:
@@ -123,6 +135,71 @@ def invoke_model(
     except Exception as e:
         logger.error(f"Error invoking the model: {str(e)}")
         return None
+
+
+def classify_platform_question(user_query: str) -> tuple[bool, str]:
+    """Classify if question is platform-specific and extract platform using LLM."""
+    classifier_prompt = get_prompt("/chatbot/prompts/classifier").format(question=user_query)
+    response = invoke_model(classifier_prompt, os.getenv("CLASSIFIER_MODEL_ID"), max_tokens=100)
+    
+    if response and "<is_platform>True</is_platform>" in response:
+        # Extract platform from response
+        import re
+        platform_match = re.search(r"<platform>(\w+)</platform>", response)
+        platform = platform_match.group(1) if platform_match else ""
+        return True, platform
+    return False, ""
+
+
+def extract_platform_from_query(user_query: str) -> str:
+    """Extract platform name from user query."""
+    query_lower = user_query.lower()
+    if any(term in query_lower for term in ["aws", "amazon web services", "amazon"]):
+        return "AWS"
+    elif any(term in query_lower for term in ["gcp", "google cloud", "google"]):
+        return "GCP"
+    elif any(term in query_lower for term in ["azure", "microsoft"]):
+        return "Azure"
+    return ""
+
+
+def filter_platform_documents(documents: List[Dict[str, Any]], platform: str) -> List[Dict[str, Any]]:
+    """Filter out documents not related to the specified platform."""
+    if not platform:
+        return documents
+    
+    # Extract document titles
+    doc_titles = []
+    for doc in documents:
+        if doc.get("_source", {}).get("metadata", {}).get("doc_id"):
+            doc_titles.append(doc["_source"]["metadata"]["doc_id"])
+    
+    if not doc_titles:
+        return documents
+    
+    # Use LLM to filter documents
+    filter_prompt = get_prompt("/chatbot/prompts/filter").format(
+        platform=platform,
+        document_titles="\n".join(doc_titles)
+    )
+    
+    response = invoke_model(filter_prompt, os.getenv("DOCUMENT_FILTER_MODEL_ID"), max_tokens=1000)
+    
+    if not response or response.strip() == "NONE":
+        return documents
+    
+    # Parse filtered titles
+    filtered_titles = [title.strip() for title in response.split("\n") if title.strip()]
+    logger.info(f"Documents filtered out for {platform}: {filtered_titles}")
+    
+    # Remove documents with filtered titles
+    filtered_docs = []
+    for doc in documents:
+        doc_title = doc.get("_source", {}).get("metadata", {}).get("doc_id", "")
+        if doc_title not in filtered_titles:
+            filtered_docs.append(doc)
+    
+    return filtered_docs
 
 
 def process_text(
@@ -365,6 +442,18 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             user_query, embedding
         )
 
+        # Platform classification and filtering
+        is_platform_specific, platform = classify_platform_question(user_query)
+        logger.info(f"Platform classification - Is platform specific: {is_platform_specific}, Platform: {platform}")
+        
+        if is_platform_specific and platform:
+            original_count = len(selected_docs)
+            selected_docs = filter_platform_documents(selected_docs, platform)
+            filtered_count = original_count - len(selected_docs)
+            logger.info(f"Platform filtering - Removed {filtered_count} documents not related to {platform}")
+        else:
+            logger.info("No platform filtering applied")
+
         source_mapping: Dict[str, Dict[str, Any]] = generate_source_mapping(
             selected_docs
         )
@@ -407,7 +496,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             + "User: "
             + user_query
             + "\n"
-            + os.getenv("CHAT_PROMPT").format(
+            + get_prompt("/chatbot/prompts/chat").format(
                 documents=formatted_docs, citations=str(simplified_mapping)
             )
         )

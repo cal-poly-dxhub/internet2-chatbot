@@ -39,6 +39,8 @@ model:
   image_description: anthropic.claude-3-haiku-20240307-v1:0
   video_ingest: anthropic.claude-3-haiku-20240307-v1:0
   audio_ingest: anthropic.claude-3-5-sonnet-20241022-v2:0
+  classifier: anthropic.claude-3-haiku-20240307-v1:0
+  document_filter: anthropic.claude-3-haiku-20240307-v1:0
 
 chat_prompt: |
   You are a knowledgeable help desk assistant for Internet2, a community of higher education, research institutions, government entities, corporations, and cultural organizations.
@@ -79,5 +81,37 @@ chat_prompt: |
     - If documents contain exact procedural steps or official statements, preserve their accuracy while integrating them naturally
     - When documents don't contain the needed information, clearly indicate you're providing general IT/networking knowledge
     - If the user does not get a good answer to their question, let them know that a more specific question could have a better answer.
+    - If the user asks general question which may be platform specific, tell them to specify a platform for a better answer (AWS, GCP, Azure etc).
 
   **Remember:** Prioritize accuracy and helpfulness while maintaining professional communication throughout.
+
+# Platform classification prompts
+platform_classifier_prompt: |
+  Analyze the following user question and determine if it is asking about a specific cloud platform.
+
+  Cloud platforms include:
+  - AWS (Amazon Web Services, Amazon, AWS services)
+  - GCP (Google Cloud Platform, Google Cloud, GCP services)
+  - Azure (Microsoft Azure, Azure services)
+  - Other cloud platforms (Oracle Cloud, IBM Cloud, etc.)
+
+  If the question is specifically about one of these platforms, respond with:
+  <is_platform>True</is_platform>
+  <platform>PLATFORM_NAME</platform>
+
+  Where PLATFORM_NAME is one of: AWS, GCP, Azure, or Other
+
+  If the question is general or not platform-specific, respond with:
+  <is_platform>False</is_platform>
+
+  Question: {question}
+
+document_filter_prompt: |
+  Given this list of document titles, return only the titles that are NOT related to the specified platform.
+
+  Platform: {platform}
+
+  Document titles:
+  {document_titles}
+
+  Return only the document titles that should be filtered OUT (not related to {platform}), one per line. If all documents are relevant to {platform}, return "NONE".
