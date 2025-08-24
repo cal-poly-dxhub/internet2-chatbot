@@ -144,21 +144,7 @@ function App() {
           message.content
         )}
 
-        {/* Footer block: meeting/video links only */}
-        {isAssistant && meetingLinks.length > 0 && (
-          <div className="sources">
-            <div className="sources-title">Meetings referenced</div>
-            <ul className="sources-list">
-              {meetingLinks.map((s, i) => (
-                <li key={i}>
-                  <a href={s.url} target="_blank" rel="noreferrer">
-                    {s.text}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+    
 
         {message.timestamp && (
           <div className="timestamp">
