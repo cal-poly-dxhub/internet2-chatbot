@@ -12,6 +12,7 @@ const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.REACT_APP_API_KEY }
 });
+
 export const sendMessage = async (message, sessionId) => {
   try {
     console.log('Sending request to:', `${API_URL}/chat-response`);
@@ -42,6 +43,44 @@ export const sendMessage = async (message, sessionId) => {
     return response.data;
   } catch (error) {
     console.error('API Error:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      headers: error.response?.headers
+    });
+    throw error;
+  }
+};
+
+export const sendFeedback = async (sessionId, timestamp, rating, feedbackText = '') => {
+  try {
+    console.log('Sending feedback to:', `${API_URL}/feedback`);
+    console.log('Feedback payload:', {
+      session_id: sessionId,
+      timestamp: timestamp,
+      rating: rating,
+      feedback_text: feedbackText
+    });
+
+    const response = await axios({
+      method: 'post',
+      url: `${API_URL}/feedback`,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': API_KEY
+      },
+      data: {
+        session_id: sessionId,
+        timestamp: timestamp,
+        rating: rating,
+        feedback_text: feedbackText
+      }
+    });
+
+    console.log('Feedback Response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Feedback API Error:', {
       message: error.message,
       response: error.response?.data,
       status: error.response?.status,
