@@ -24,3 +24,7 @@ config.yaml
 cdk.out
 
 config.yaml
+
+.env.development
+.env.production
+.env
