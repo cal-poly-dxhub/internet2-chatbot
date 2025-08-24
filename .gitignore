@@ -5,6 +5,20 @@ __pycache__
 .venv
 *.egg-info
 
+*.swp
+package-lock.json
+__pycache__
+.pytest_cache
+.venv
+*.egg-info
+
+# CDK asset staging directory
+.cdk.staging
+cdk.out
+
+config.yaml
+
+
 # CDK asset staging directory
 .cdk.staging
 cdk.out
