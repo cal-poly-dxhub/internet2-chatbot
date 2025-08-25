@@ -49,7 +49,11 @@ def get_conversation_history(session_id: str) -> List[Dict[str, str]]:
 
 
 def save_message(
-    session_id: str, role: str, content: str, document_ids: List[str] = None, conversation_turn: str = None
+    session_id: str,
+    role: str,
+    content: str,
+    document_ids: List[str] = None,
+    conversation_turn: str = None,
 ) -> int:
     """Save a message to conversation history and return timestamp."""
     table = dynamodb.Table(os.getenv("CONVERSATION_TABLE"))
@@ -64,7 +68,7 @@ def save_message(
 
     if document_ids:
         item["document_ids"] = document_ids
-    
+
     if conversation_turn:
         item["conversation_turn"] = conversation_turn
 
@@ -117,9 +121,9 @@ def invoke_model(
 
     try:
         inference_config = {
-            "maxTokens": max_tokens,
-            "temperature": 1,
-            "topP": 0.999,
+            "maxTokens": int(os.environ.get("MAX_TOKENS", "4096")),
+            "temperature": float(os.environ.get("TEMPERATURE", "1.0")),
+            "topP": float(os.environ.get("TOP_P", "0.999")),
         }
         messages = [{"role": "user", "content": [{"text": prompt}]}]
 
@@ -139,12 +143,17 @@ def invoke_model(
 
 def classify_platform_question(user_query: str) -> tuple[bool, str]:
     """Classify if question is platform-specific and extract platform using LLM."""
-    classifier_prompt = get_prompt("/chatbot/prompts/classifier").format(question=user_query)
-    response = invoke_model(classifier_prompt, os.getenv("CLASSIFIER_MODEL_ID"), max_tokens=100)
-    
+    classifier_prompt = get_prompt("/chatbot/prompts/classifier").format(
+        question=user_query
+    )
+    response = invoke_model(
+        classifier_prompt, os.getenv("CLASSIFIER_MODEL_ID"), max_tokens=100
+    )
+
     if response and "<is_platform>True</is_platform>" in response:
         # Extract platform from response
         import re
+
         platform_match = re.search(r"<platform>(\w+)</platform>", response)
         platform = platform_match.group(1) if platform_match else ""
         return True, platform
@@ -154,7 +163,9 @@ def classify_platform_question(user_query: str) -> tuple[bool, str]:
 def extract_platform_from_query(user_query: str) -> str:
     """Extract platform name from user query."""
     query_lower = user_query.lower()
-    if any(term in query_lower for term in ["aws", "amazon web services", "amazon"]):
+    if any(
+        term in query_lower for term in ["aws", "amazon web services", "amazon"]
+    ):
         return "AWS"
     elif any(term in query_lower for term in ["gcp", "google cloud", "google"]):
         return "GCP"
@@ -163,42 +174,47 @@ def extract_platform_from_query(user_query: str) -> str:
     return ""
 
 
-def filter_platform_documents(documents: List[Dict[str, Any]], platform: str) -> List[Dict[str, Any]]:
+def filter_platform_documents(
+    documents: List[Dict[str, Any]], platform: str
+) -> List[Dict[str, Any]]:
     """Filter out documents not related to the specified platform."""
     if not platform:
         return documents
-    
+
     # Extract document titles
     doc_titles = []
     for doc in documents:
         if doc.get("_source", {}).get("metadata", {}).get("doc_id"):
             doc_titles.append(doc["_source"]["metadata"]["doc_id"])
-    
+
     if not doc_titles:
         return documents
-    
+
     # Use LLM to filter documents
     filter_prompt = get_prompt("/chatbot/prompts/filter").format(
-        platform=platform,
-        document_titles="\n".join(doc_titles)
+        platform=platform, document_titles="\n".join(doc_titles)
     )
-    
-    response = invoke_model(filter_prompt, os.getenv("DOCUMENT_FILTER_MODEL_ID"), max_tokens=1000)
-    
+
+    response = invoke_model(
+        filter_prompt, os.getenv("DOCUMENT_FILTER_MODEL_ID"), max_tokens=1000
+    )
+
     if not response or response.strip() == "NONE":
         return documents
-    
+
     # Parse filtered titles
-    filtered_titles = [title.strip() for title in response.split("\n") if title.strip()]
+    filtered_titles = [
+        title.strip() for title in response.split("\n") if title.strip()
+    ]
     logger.info(f"Documents filtered out for {platform}: {filtered_titles}")
-    
+
     # Remove documents with filtered titles
     filtered_docs = []
     for doc in documents:
         doc_title = doc.get("_source", {}).get("metadata", {}).get("doc_id", "")
         if doc_title not in filtered_titles:
             filtered_docs.append(doc)
-    
+
     return filtered_docs
 
 
@@ -444,13 +460,17 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         # Platform classification and filtering
         is_platform_specific, platform = classify_platform_question(user_query)
-        logger.info(f"Platform classification - Is platform specific: {is_platform_specific}, Platform: {platform}")
-        
+        logger.info(
+            f"Platform classification - Is platform specific: {is_platform_specific}, Platform: {platform}"
+        )
+
         if is_platform_specific and platform:
             original_count = len(selected_docs)
             selected_docs = filter_platform_documents(selected_docs, platform)
             filtered_count = original_count - len(selected_docs)
-            logger.info(f"Platform filtering - Removed {filtered_count} documents not related to {platform}")
+            logger.info(
+                f"Platform filtering - Removed {filtered_count} documents not related to {platform}"
+            )
         else:
             logger.info("No platform filtering applied")
 
@@ -481,7 +501,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             history_context += "<conversation_history>"
             current_length = 0
 
-            for msg in history[-max_turns:]:  # Use config value for turns
+            for msg in history[-max_turns:]:
                 msg_text = f"{msg['role'].title()}: {msg['content']}\n"
                 if current_length + len(msg_text) > max_chars:
                     break
@@ -530,7 +550,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Save conversation to history
         save_message(session_id, "user", user_query, None, conversation_turn)
         assistant_timestamp = save_message(
-            session_id, "assistant", final_response, document_ids, conversation_turn
+            session_id,
+            "assistant",
+            final_response,
+            document_ids,
+            conversation_turn,
         )
 
         return {

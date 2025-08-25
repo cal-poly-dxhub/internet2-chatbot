@@ -42,6 +42,9 @@ class RagBackend(Construct):
         docs_after_falloff: int,
         conversation_history_turns: int = 4,
         max_history_characters: int = 100000,
+        temperature: float = 1.0,
+        top_p: float = 0.999,
+        max_tokens: int = 4096,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -113,6 +116,9 @@ class RagBackend(Construct):
                 "DOCS_AFTER_FALLOFF": str(docs_after_falloff),
                 "CONVERSATION_HISTORY_TURNS": str(conversation_history_turns),
                 "MAX_HISTORY_CHARACTERS": str(max_history_characters),
+                "TEMPERATURE": str(temperature),
+                "TOP_P": str(top_p),
+                "MAX_TOKENS": str(max_tokens),
             },
         )
 
