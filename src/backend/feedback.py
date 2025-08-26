@@ -55,6 +55,11 @@ def feedback_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         return {
             "statusCode": 200,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key",
+                "Access-Control-Allow-Methods": "OPTIONS,POST"
+            },
             "body": json.dumps({"message": "Feedback saved"})
         }
 
@@ -62,5 +67,10 @@ def feedback_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         logger.error(f"Error in feedback_handler: {e}")
         return {
             "statusCode": 500,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key",
+                "Access-Control-Allow-Methods": "OPTIONS,POST"
+            },
             "body": json.dumps("Error saving feedback")
         }

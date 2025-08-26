@@ -9,7 +9,7 @@ import {
 } from './components';
 
 function App() {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState([]); //conversation history
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId] = useState(() => `session_${Date.now()}`);
@@ -73,6 +73,7 @@ function App() {
       setInput('');
 
       const response = await sendMessage(input, sessionId);
+      console.log("DEBUG RESPONSE", response);
 
       const botMessage = {
         role: 'assistant',

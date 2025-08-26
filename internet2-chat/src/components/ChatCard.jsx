@@ -37,7 +37,6 @@ const ChatCard = ({
         )}
       </div>
 
-      {/* Fixed input bar */}
       <ChatInput
         input={input}
         onInputChange={onInputChange}

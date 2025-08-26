@@ -101,7 +101,19 @@ body {
 /* Header */
 .header {
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
+
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-mark {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: grid; place-items: center;
+  font-weight: 800; color: #1f2937;
+  background: #e0e7ff; border: 1px solid #c7d2fe;
+}
+.brand-text { font-size: 20px; font-weight: 700; color: #111827; }
 
 .title {
   font-size: 28px;
@@ -165,6 +177,7 @@ body {
 .message {
   display: flex;
   margin: 12px 0;
+  gap: 10px;
 }
 
 .message.user { justify-content: flex-end; }
@@ -176,7 +189,18 @@ body {
   border-radius: 14px;
   border: 1px solid var(--stroke);
   background: var(--assistant);
+  position: relative;
 }
+
+.avatar {
+  width: 32px; height: 32px; border-radius: 999px;
+  flex: 0 0 32px;
+  display: grid; place-items: center;
+  font-weight: 700; font-size: 14px;
+  border: 1px solid var(--stroke);
+}
+.avatar.user { background: #dbeafe; color: #1e40af; }
+.avatar.assistant { background: #f1f5f9; color: #334155; }
 
 .message.user .bubble { background: var(--user); }
 .message.assistant .bubble { background: var(--assistant); }
