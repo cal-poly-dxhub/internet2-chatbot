@@ -192,7 +192,7 @@ def main(media_file_uri, transcribe_uri, metadata):
             chunked_scenes_file,
             scenes_with_ocr_file,
             scenes_dir,
-            batch_size=10,  # TODO
+            batch_size=10,
         )
     )
     end_time = time.time()

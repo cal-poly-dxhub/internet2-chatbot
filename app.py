@@ -18,6 +18,10 @@ RagChatbotStack(
     embedding_model=config["model"]["embedding"],
     video_text_model_id=config["model"]["video_ingest"],
     chat_prompt=config["chat_prompt"],
+    classifier_model=config["model"]["classifier"],
+    document_filter_model=config["model"]["document_filter"],
+    platform_classifier_prompt=config["platform_classifier_prompt"],
+    document_filter_prompt=config["document_filter_prompt"],
     config_path=CONFIG_PATH,
     max_concurrency=int(config["max_concurrency"]),
     step_function_timeout_hours=int(config["step_function_timeout_hours"]),
@@ -27,6 +31,9 @@ RagChatbotStack(
     docs_after_falloff=int(config["docs_after_falloff"]),
     conversation_history_turns=int(config["conversation_history_turns"]),
     max_history_characters=int(config["max_history_characters"]),
+    temperature=float(config["temperature"]),
+    top_p=float(config["top_p"]),
+    max_tokens=int(config["max_tokens"]),
 )
 
 app.synth()
