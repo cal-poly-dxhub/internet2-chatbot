@@ -52,19 +52,19 @@ class RagBackend(Construct):
         # Create Parameter Store entries for prompts
         chat_prompt_param = ssm.StringParameter(
             self, "ChatPromptParameter",
-            parameter_name="/chatbot/prompts/chat",
+            parameter_name="/chatbot/prompts/chat-react",
             string_value=chat_prompt
         )
         
         classifier_prompt_param = ssm.StringParameter(
             self, "ClassifierPromptParameter", 
-            parameter_name="/chatbot/prompts/classifier",
+            parameter_name="/chatbot/prompts/classifier-react",
             string_value=platform_classifier_prompt
         )
         
         filter_prompt_param = ssm.StringParameter(
             self, "FilterPromptParameter",
-            parameter_name="/chatbot/prompts/filter", 
+            parameter_name="/chatbot/prompts/filter-react", 
             string_value=document_filter_prompt
         )
         

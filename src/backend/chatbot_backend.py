@@ -143,7 +143,7 @@ def invoke_model(
 
 def classify_platform_question(user_query: str) -> tuple[bool, str]:
     """Classify if question is platform-specific and extract platform using LLM."""
-    classifier_prompt = get_prompt("/chatbot/prompts/classifier").format(
+    classifier_prompt = get_prompt("/chatbot/prompts/classifier-react").format(
         question=user_query
     )
     response = invoke_model(
@@ -191,7 +191,7 @@ def filter_platform_documents(
         return documents
 
     # Use LLM to filter documents
-    filter_prompt = get_prompt("/chatbot/prompts/filter").format(
+    filter_prompt = get_prompt("/chatbot/prompts/filter-react").format(
         platform=platform, document_titles="\n".join(doc_titles)
     )
 
@@ -516,7 +516,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             + "User: "
             + user_query
             + "\n"
-            + get_prompt("/chatbot/prompts/chat").format(
+            + get_prompt("/chatbot/prompts/chat-react").format(
                 documents=formatted_docs, citations=str(simplified_mapping)
             )
         )

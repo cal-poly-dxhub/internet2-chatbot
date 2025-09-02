@@ -309,14 +309,14 @@ class RagIngest(Construct):
         video_log_group = logs.LogGroup(
             self,
             "VideoLogGroup",
-            log_group_name="/ecs/video-service",
+            log_group_name="/ecs/video-service-react",
             removal_policy=RemovalPolicy.DESTROY,
         )
 
         audio_log_group = logs.LogGroup(
             self,
             "AudioLogGroup",
-            log_group_name="/ecs/audio-service",
+            log_group_name="/ecs/audio-service-react",
             removal_policy=RemovalPolicy.DESTROY,
         )
 
