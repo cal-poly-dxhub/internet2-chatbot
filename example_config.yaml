@@ -88,7 +88,6 @@ chat_prompt: |
 
   **Remember:** Prioritize accuracy and helpfulness while maintaining professional communication throughout.
 
-# Platform classification prompts
 platform_classifier_prompt: |
   Analyze the following user question and determine if it is asking about a specific cloud platform.
 
