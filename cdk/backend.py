@@ -202,8 +202,8 @@ class RagBackend(Construct):
         api = apigw.RestApi(
             self,
             "RagAPI",
-            rest_api_name="RagChatbotAPI",
-            description="API Gateway to be served by a lambda",
+            rest_api_name="RagChatbotAPI-React",
+            description="API Gateway to be served by a lambda React",
         )
 
         # Create chat-response resource and method
@@ -276,15 +276,15 @@ class RagBackend(Construct):
         api_key = apigw.ApiKey(
             self,
             "RagChatbotApiKey",
-            api_key_name="RagChatAPIKey",
-            description="API key for accessing RagChatbotAPI",
+            api_key_name="RagChatAPIKey-React",
+            description="API key for accessing RagChatbotAPI React",
         )
 
         # Create Usage Plan and associate with API Key and API Stage
         usage_plan = apigw.UsagePlan(
             self,
             "RagChatUsagePlan",
-            name="RagChatUsagePlan",
+            name="RagChatUsagePlan-React",
             throttle=apigw.ThrottleSettings(
                 rate_limit=10,
                 burst_limit=2,
