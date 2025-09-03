@@ -12,7 +12,14 @@ function App() {
   const [messages, setMessages] = useState([]); //conversation history
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionId] = useState(() => `session_${Date.now()}`);
+  //const [sessionId] = useState(() => `session_${Date.now()}`);
+  const [sessionId] = useState(() => {
+    const existingSession = localStorage.getItem('chatSessionId');
+    if (existingSession) return existingSession;
+    const newSession = `session_${Date.now()}`;
+    localStorage.setItem('chatSessionId', newSession);
+    return newSession;
+  });
   const [feedbackSent, setFeedbackSent] = useState(new Set());
   const [feedbackRatings, setFeedbackRatings] = useState({});
   const [feedbackTexts, setFeedbackTexts] = useState({});
@@ -29,6 +36,20 @@ function App() {
     "I've got a consultant coming in to install Control Tower for us...",
     'Do I have to set up a cloud networking architecture for each platform...'
   ];
+
+ 
+
+  const handleSendMessage = async (message) => {
+    try {
+      const response = await sendMessage(message, sessionId);
+      setMessages(prevMessages => [...prevMessages, 
+        { role: 'user', content: message },
+        { role: 'assistant', content: response.answer }
+      ]);
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  };
 
   const handleFeedback = async (timestamp, rating, feedbackText = '') => {
     try {

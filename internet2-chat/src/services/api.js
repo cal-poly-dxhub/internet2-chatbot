@@ -13,19 +13,8 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.REACT_APP_API_KEY }
 });
 
-export const sendMessage = async (message, sessionId) => {
+export const sendMessage = async (message, sessionId, history) => {
   try {
-    console.log('Sending request to:', `${API_URL}/chat-response`);
-    console.log('Request payload:', {
-      query: message,
-      session_id: sessionId
-    });
-    console.log('Headers:', {
-      'Content-Type': 'application/json',
-      'x-api-key': API_KEY
-    });
-
-    // Make the API call directly without using the axios instance
     const response = await axios({
       method: 'post',
       url: `${API_URL}/chat-response`,
@@ -35,22 +24,18 @@ export const sendMessage = async (message, sessionId) => {
       },
       data: {
         query: message,
-        session_id: sessionId
+        session_id: sessionId,
+        conversation_history: history // Add this
       }
     });
-
-    console.log('API Response:', response.data);
     return response.data;
   } catch (error) {
-    console.error('API Error:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status,
-      headers: error.response?.headers
-    });
     throw error;
   }
 };
+
+
+
 
 export const sendFeedback = async (sessionId, timestamp, rating, feedbackText = '') => {
   try {
