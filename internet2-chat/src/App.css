@@ -435,3 +435,74 @@ body {
   font-size: 13px;
   font-weight: 500;
 }
+
+/* Sources and Meetings Styling (JSON response) */
+.sources-and-meetings {
+  margin-top: 12px;
+}
+
+.sources {
+  margin-bottom: 12px;
+}
+
+.source-inline {
+  display: inline;
+  margin-right: 8px;
+}
+
+.source-link {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.source-link:hover {
+  text-decoration: underline;
+}
+
+.source-timestamp {
+  color: #6b7280;
+  font-size: 0.9em;
+}
+
+.source-badge {
+  color: #6b7280;
+  font-style: italic;
+  font-size: 0.9em;
+}
+
+.meetings {
+  margin-top: 16px;
+}
+
+.meetings-header {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #111827;
+}
+
+.meetings-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.meeting-item {
+  margin-bottom: 4px;
+}
+
+.meeting-link {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.meeting-link:hover {
+  text-decoration: underline;
+}
+
+.meeting-badge {
+  color: #6b7280;
+  font-style: italic;
+  font-size: 0.9em;
+}

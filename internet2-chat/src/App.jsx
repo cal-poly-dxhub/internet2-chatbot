@@ -99,6 +99,8 @@ function App() {
       const botMessage = {
         role: 'assistant',
         content: response.response || response.message || 'No response content',
+        sources: response.sources || [],
+        meetings: response.meetings || [],
         timestamp: response.timestamp || Date.now()
       };
       setMessages(prev => [...prev, botMessage]);

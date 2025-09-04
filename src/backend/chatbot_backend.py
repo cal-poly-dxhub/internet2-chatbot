@@ -536,10 +536,64 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             model_response, metadata_mapping
         )
 
-        # Use source mapping and metadata mapping for text processing
-        final_response: str = process_text(
-            meeting_response, source_mapping, metadata_mapping
-        )
+        # Extract sources and meetings for JSON response (keeping original timestamp logic)
+        sources = []
+        meetings = []
+        
+        # Process sources from source_mapping (using EXACT same logic as process_text)
+        for uuid_key, data in source_mapping.items():
+            metadata = metadata_mapping.get(uuid_key, {})
+            source_url = data["source_url"]
+            doc_type = data["doc_type"]
+            start_time = data.get("start_time")
+            is_member = metadata.get("member_content_flag")
+            title = metadata.get("title", "Document")
+            
+            # Create member content badge (EXACT same logic)
+            badge = "[Subscriber-only]" if is_member == "true" else "[Public]"
+            
+            # Add timestamp for video/audio content (EXACT same logic as original)
+            if doc_type in ["video", "podcast"] and start_time:
+                url_with_timestamp = f"{source_url}#t={start_time}"
+                source = {
+                    "title": title,
+                    "url": url_with_timestamp,
+                    "badge": badge,
+                    "type": doc_type,
+                    "timestamp": str(start_time)
+                }
+            else:
+                source = {
+                    "title": title,
+                    "url": source_url,
+                    "badge": badge,
+                    "type": doc_type
+                }
+            
+            sources.append(source)
+        
+        # Process meetings from metadata_mapping (EXACT same logic as add_meeting_list)
+        meeting_uuids = set()
+        for uuid_key, metadata in metadata_mapping.items():
+            if metadata.get("parent_folder_name") and metadata.get("parent_folder_url"):
+                meeting_uuids.add((metadata["parent_folder_name"], metadata["parent_folder_url"], metadata.get("member_content_flag", "")))
+        
+        for folder_name, meeting_url, member_content in meeting_uuids:
+            badge = "*[Subscriber-only]*" if member_content == "true" else "*[Public]*"
+            meeting = {
+                "name": folder_name,
+                "url": meeting_url,
+                "badge": badge
+            }
+            meetings.append(meeting)
+        
+        # Clean the model response (remove UUIDs and meeting references)
+        clean_response = meeting_response
+        # Remove UUID references
+        clean_response = re.sub(r"<[a-f0-9]{8}>", "", clean_response)
+        # Remove meeting references section
+        clean_response = re.sub(r"\n\n\*\*Meetings referenced:\*\*\n.*", "", clean_response, flags=re.DOTALL)
+        clean_response = clean_response.strip()
 
         # Extract document IDs for storage
         document_ids = extract_document_ids(selected_docs)
@@ -552,7 +606,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         assistant_timestamp = save_message(
             session_id,
             "assistant",
-            final_response,
+            clean_response,
             document_ids,
             conversation_turn,
         )
@@ -566,7 +620,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             },
             "body": json.dumps(
                 {
-                    "response": final_response,
+                    "response": clean_response,
+                    "sources": sources,
+                    "meetings": meetings,
                     "session_id": session_id,
                     "timestamp": assistant_timestamp,
                 }
