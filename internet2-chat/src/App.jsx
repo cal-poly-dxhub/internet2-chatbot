@@ -33,8 +33,8 @@ function App() {
     'How do I convince my leadership of the importance of FinOps practices?',
     'Who has a Cloud Center of Excellence?',
     'How are people doing account provisioning?',
-    "I've got a consultant coming in to install Control Tower for us...",
-    'Do I have to set up a cloud networking architecture for each platform...'
+    "I've got a consultant coming in to install Control Tower for us?",
+    'Do I have to set up a cloud networking architecture for each platform?'
   ];
 
  

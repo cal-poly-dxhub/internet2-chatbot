@@ -506,3 +506,55 @@ body {
   font-style: italic;
   font-size: 0.9em;
 }
+
+/* Sources and meetings styling */
+.sources-and-meetings {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #007bff;
+}
+
+.sources-and-meetings h4 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sources-and-meetings ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.sources-and-meetings li {
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.sources-and-meetings a {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.sources-and-meetings a:hover {
+  text-decoration: underline;
+}
+
+.sources-and-meetings .badge {
+  margin-left: 8px;
+  padding: 2px 6px;
+  background-color: #e9ecef;
+  color: #495057;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.sources-and-meetings .timestamp {
+  color: #6c757d;
+  font-size: 11px;
+  font-style: italic;
+}
