@@ -283,6 +283,70 @@ body {
   word-break: break-word;
 }
 
+/* Inline sources */
+.inline-source {
+  display: inline;
+}
+
+.source-link {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.source-link:hover {
+  text-decoration: underline;
+}
+
+.source-badge {
+  color: #6b7280;
+  font-style: italic;
+  font-size: 13px;
+}
+
+/* Meetings section */
+.meetings-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.meetings-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.meetings-section ul {
+  margin: 0;
+  padding-left: 16px;
+  list-style-type: disc;
+}
+
+.meetings-section li {
+  margin: 4px 0;
+  line-height: 1.4;
+}
+
+.meetings-section a {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.meetings-section a:hover {
+  text-decoration: underline;
+}
+
+.badge {
+  color: #6b7280;
+  font-style: italic;
+  font-size: 13px;
+}
+
 /* Sources block */
 .sources {
   margin-top: 14px;
@@ -557,4 +621,86 @@ body {
   color: #6c757d;
   font-size: 11px;
   font-style: italic;
+}
+
+/* Response text styling for better readability */
+.response-text {
+  line-height: 1.6;
+  margin-bottom: 15px;
+}
+
+.response-line {
+  margin-bottom: 8px;
+}
+
+/* Sources integrated styling */
+.sources-integrated {
+  margin: 15px 0;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #007bff;
+}
+
+.source-item {
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.source-link {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.source-link:hover {
+  text-decoration: underline;
+}
+
+.source-badge {
+  color: #6c757d;
+  font-style: italic;
+  font-size: 0.9em;
+}
+
+/* Meetings section styling */
+.meetings-section {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #007bff;
+}
+
+.meetings-section h4 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.meetings-section ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.meetings-section li {
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.meetings-section a {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.meetings-section a:hover {
+  text-decoration: underline;
+}
+
+.meetings-section .badge {
+  color: #6c757d;
+  font-style: italic;
+  font-size: 0.9em;
 }
