@@ -49,6 +49,7 @@ class RagIngest(Construct):
         self,
         scope: Construct,
         construct_id: str,
+        unique_prefix: str,
         opensearch_index_name: str,
         opensearch_collection_name: str,
         embeddings_model_id: str,
@@ -90,7 +91,7 @@ class RagIngest(Construct):
             self,
             "NetworkSecurityPolicy",
             policy=network_security_policy,
-            name=f"{collection_name}-security-policy",
+            name=f"{unique_prefix.lower()}-net-policy",
             type="network",
         )
 
@@ -111,7 +112,7 @@ class RagIngest(Construct):
             self,
             "EncryptionSecurityPolicy",
             policy=encryption_security_policy,
-            name=f"{collection_name}-security-policy",
+            name=f"{unique_prefix.lower()}-enc-policy",
             type="encryption",
         )
 
@@ -161,7 +162,7 @@ class RagIngest(Construct):
             indent=2,
         )
 
-        data_access_policy_name = f"{collection_name}-policy"
+        data_access_policy_name = f"{unique_prefix.lower()}-data-policy"
         assert len(data_access_policy_name) <= 32
 
         cfn_access_policy = aws_opss.CfnAccessPolicy(
@@ -309,14 +310,14 @@ class RagIngest(Construct):
         video_log_group = logs.LogGroup(
             self,
             "VideoLogGroup",
-            log_group_name="/ecs/video-service",
+            log_group_name=f"/ecs/{unique_prefix.lower()}-video-service",
             removal_policy=RemovalPolicy.DESTROY,
         )
 
         audio_log_group = logs.LogGroup(
             self,
             "AudioLogGroup",
-            log_group_name="/ecs/audio-service",
+            log_group_name=f"/ecs/{unique_prefix.lower()}-audio-service",
             removal_policy=RemovalPolicy.DESTROY,
         )
 

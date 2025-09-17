@@ -184,12 +184,14 @@ body {
 .message.assistant { justify-content: flex-start; }
 
 .bubble {
-  max-width: 70ch;
-  padding: 12px 14px;
-  border-radius: 14px;
+  max-width: 80ch;
+  padding: 16px 20px;
+  border-radius: 18px;
   border: 1px solid var(--stroke);
   background: var(--assistant);
   position: relative;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 .avatar {
@@ -268,77 +270,200 @@ body {
 }
 
 /* Markdown inside assistant bubbles */
-.bubble :where(h1,h2,h3) {
-  margin: 0.6rem 0 0.3rem;
+.bubble :where(h1,h2,h3,h4) {
+  margin: 1rem 0 0.5rem 0;
   font-weight: 700;
+  color: #1f2937;
+  line-height: 1.3;
 }
-.bubble :where(p,ul,ol) {
-  margin: 0.4rem 0;
+
+.bubble :where(p) {
+  margin: 0.6rem 0;
+  line-height: 1.6;
+  color: #374151;
 }
+
 .bubble ul, .bubble ol {
-  padding-left: 1.2rem;
+  margin: 0.8rem 0;
+  padding-left: 1.5rem;
+  line-height: 1.6;
 }
+
+.bubble ul li {
+  margin: 0.5rem 0;
+  color: #374151;
+  position: relative;
+}
+
+.bubble ul li::marker {
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.bubble ol li {
+  margin: 0.6rem 0;
+  color: #374151;
+  position: relative;
+}
+
 .bubble a {
+  color: #2563eb;
   text-decoration: underline;
   word-break: break-word;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.bubble a:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+/* Numbered sections styling */
+.bubble :where(strong) {
+  font-weight: 700;
+  color: #1f2937;
+}
+
+/* Better spacing for numbered lists */
+.bubble ol {
+  counter-reset: item;
+}
+
+.bubble ol > li {
+  display: block;
+  margin: 0.8rem 0;
+  padding-left: 0.5rem;
+}
+
+.bubble ol > li:before {
+  content: counter(item) ". ";
+  counter-increment: item;
+  font-weight: 700;
+  color: #1f2937;
+  margin-right: 0.5rem;
+}
+
+/* Assistant content styling */
+.assistant-content {
+  line-height: 1.6;
+}
+
+.user-content {
+  line-height: 1.5;
+}
+
+.response-text {
+  margin-bottom: 1rem;
+}
+
+.response-line {
+  margin-bottom: 0.5rem;
+}
+
+.response-line:last-child {
+  margin-bottom: 0;
+}
+
+.numbered-section {
+  margin: 1rem 0;
+  font-weight: 500;
+}
+
+.numbered-section strong {
+  color: #1f2937;
+  font-weight: 700;
+  margin-right: 0.5rem;
+}
+
+.bullet-point {
+  margin: 0.4rem 0;
+  padding-left: 1rem;
+  position: relative;
+}
+
+.bullet-point::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: #6b7280;
+  font-weight: 600;
 }
 
 /* Inline sources */
 .inline-source {
   display: inline;
+  margin: 0 2px;
 }
 
 .source-link {
   color: #2563eb;
-  text-decoration: none;
-  font-weight: 500;
+  text-decoration: underline;
+  font-weight: 600;
   word-break: break-word;
+  transition: color 0.2s ease;
+  cursor: pointer;
+  font-style: italic;
 }
 
 .source-link:hover {
+  color: #1d4ed8;
   text-decoration: underline;
 }
 
 .source-badge {
   color: #6b7280;
+  font-size: 0.875em;
   font-style: italic;
-  font-size: 13px;
+  margin-left: 4px;
 }
 
 /* Meetings section */
 .meetings-section {
-  margin-top: 16px;
-  padding-top: 12px;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
   border-top: 1px solid #e5e7eb;
 }
 
 .meetings-section h4 {
-  margin: 0 0 8px 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1f2937;
 }
 
-.meetings-section ul {
+.meetings-list {
+  list-style: none;
+  padding: 0;
   margin: 0;
-  padding-left: 16px;
-  list-style-type: disc;
 }
 
-.meetings-section li {
-  margin: 4px 0;
-  line-height: 1.4;
+.meeting-item {
+  margin-bottom: 0.4rem;
+  padding: 0.3rem 0;
+  line-height: 1.5;
 }
 
-.meetings-section a {
+.meeting-link {
   color: #2563eb;
-  text-decoration: none;
-  font-weight: 500;
+  text-decoration: underline;
+  font-weight: 600;
   word-break: break-word;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  font-style: italic;
 }
 
-.meetings-section a:hover {
+.meeting-link:hover {
+  color: #1d4ed8;
   text-decoration: underline;
+}
+
+.meeting-badge {
+  color: #6b7280;
+  font-size: 0.875em;
+  font-style: italic;
+  margin-left: 4px;
 }
 
 .badge {

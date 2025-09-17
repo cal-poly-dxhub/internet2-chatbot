@@ -83,29 +83,55 @@ const MessageBubble = ({
 
       <div className="bubble">
         {isAssistant ? (
-          <div>
-            {/* Render assistant response */}
+          <div className="assistant-content">
+            {/* Render assistant response with better formatting */}
             <div className="response-text">
-              {message.content.split('\n').map((line, index) => (
-                <div key={index} className="response-line">
-                  {renderWithInlineSources(line, message.sources)}
-                </div>
-              ))}
+              {message.content.split('\n').map((line, index) => {
+                // Skip empty lines
+                if (!line.trim()) return <br key={index} />;
+                
+                // Check if line starts with a number and period (numbered list)
+                const numberedMatch = line.match(/^(\d+)\.\s+(.+)/);
+                if (numberedMatch) {
+                  const [, number, content] = numberedMatch;
+                  return (
+                    <div key={index} className="response-line numbered-section">
+                      <strong>{number}.</strong> {renderWithInlineSources(content, message.sources)}
+                    </div>
+                  );
+                }
+                
+                // Check if line starts with bullet point
+                if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
+                  return (
+                    <div key={index} className="response-line bullet-point">
+                      {renderWithInlineSources(line, message.sources)}
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div key={index} className="response-line">
+                    {renderWithInlineSources(line, message.sources)}
+                  </div>
+                );
+              })}
             </div>
 
             {/* Meetings section: separate from sources */}
             {message.meetings && message.meetings.length > 0 && (
               <div className="meetings-section">
                 <h4>Meetings referenced:</h4>
-                <ul>
+                <ul className="meetings-list">
                   {message.meetings
                     .sort((a, b) => a.id - b.id)
                     .map((meeting) => (
-                      <li key={meeting.id}>
+                      <li key={meeting.id} className="meeting-item">
                         <a
                           href={meeting.url}
                           target="_blank"
                           rel="noopener noreferrer"
+                          className="meeting-link"
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -114,7 +140,7 @@ const MessageBubble = ({
                         >
                           {meeting.name}
                         </a>
-                        <span className="badge"> — {meeting.badge}</span>
+                        <span className="meeting-badge"> — {meeting.badge}</span>
                       </li>
                     ))}
                 </ul>
@@ -122,7 +148,9 @@ const MessageBubble = ({
             )}
           </div>
         ) : (
-          message.content
+          <div className="user-content">
+            {message.content}
+          </div>
         )}
 
         {message.timestamp && (

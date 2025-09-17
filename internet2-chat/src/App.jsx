@@ -41,10 +41,16 @@ function App() {
 
   const handleSendMessage = async (message) => {
     try {
-      const response = await sendMessage(message, sessionId);
+      const response = await sendMessage(message, sessionId, messages);
       setMessages(prevMessages => [...prevMessages, 
         { role: 'user', content: message },
-        { role: 'assistant', content: response.answer }
+        { 
+          role: 'assistant', 
+          content: response.response,
+          sources: response.sources || [],
+          meetings: response.meetings || [],
+          timestamp: response.timestamp || Date.now()
+        }
       ]);
     } catch (error) {
       console.error('Error sending message:', error);
@@ -93,12 +99,12 @@ function App() {
       setMessages(prev => [...prev, userMessage]);
       setInput('');
 
-      const response = await sendMessage(input, sessionId);
+      const response = await sendMessage(input, sessionId, messages);
       console.log("DEBUG RESPONSE", response);
 
       const botMessage = {
         role: 'assistant',
-        content: response.response || response.message || 'No response content',
+        content: response.response || 'No response content',
         sources: response.sources || [],
         meetings: response.meetings || [],
         timestamp: response.timestamp || Date.now()

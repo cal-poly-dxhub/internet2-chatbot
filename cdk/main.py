@@ -13,6 +13,7 @@ class RagChatbotStack(Stack):
         self,
         scope: Construct,
         construct_id: str,
+        unique_prefix: str,
         embeddings_model_id: str,
         video_text_model_id: str,
         opensearch_collection_name: str,
@@ -42,7 +43,8 @@ class RagChatbotStack(Stack):
 
         ingest_stack = RagIngest(
             self,
-            "RagIngest",
+            f"{unique_prefix}RagIngest",
+            unique_prefix=unique_prefix,
             opensearch_index_name=opensearch_index_name,
             opensearch_collection_name=opensearch_collection_name,
             embeddings_model_id=embeddings_model_id,
@@ -55,7 +57,8 @@ class RagChatbotStack(Stack):
         )
         rag_api_stack = RagBackend(
             self,
-            "RagBackend",
+            f"{unique_prefix}RagBackend",
+            unique_prefix=unique_prefix,
             opensearch_endpoint=ingest_stack.opensearch_endpoint,
             opensearch_index_name=opensearch_index_name,
             opensearch_collection_arn=ingest_stack.collection_arn,

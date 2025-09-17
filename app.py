@@ -8,9 +8,14 @@ CONFIG_PATH = "./config.yaml"
 config = yaml.safe_load(open(CONFIG_PATH))
 
 app = cdk.App()
+
+# Add a unique prefix to avoid conflicts with existing resources
+UNIQUE_PREFIX = "ReactNew"
+
 RagChatbotStack(
     app,
-    "RagChatbotStackReact",
+    "RagChatbotStackReactNew",
+    unique_prefix=UNIQUE_PREFIX,
     embeddings_model_id=config["model"]["embedding"],
     opensearch_collection_name=config["opensearch_collection_name"],
     opensearch_index_name=config["opensearch_index_name"],

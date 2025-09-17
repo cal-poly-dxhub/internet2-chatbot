@@ -27,6 +27,7 @@ class RagBackend(Construct):
         self,
         scope: Construct,
         construct_id: str,
+        unique_prefix: str,
         opensearch_endpoint: str,
         opensearch_index_name: str,
         opensearch_collection_arn: str,
@@ -52,19 +53,19 @@ class RagBackend(Construct):
         # Create Parameter Store entries for prompts
         chat_prompt_param = ssm.StringParameter(
             self, "ChatPromptParameter",
-            parameter_name="/chatbot/prompts/chat",
+            parameter_name=f"/chatbot/{unique_prefix.lower()}/prompts/chat",
             string_value=chat_prompt
         )
         
         classifier_prompt_param = ssm.StringParameter(
             self, "ClassifierPromptParameter", 
-            parameter_name="/chatbot/prompts/classifier",
+            parameter_name=f"/chatbot/{unique_prefix.lower()}/prompts/classifier",
             string_value=platform_classifier_prompt
         )
         
         filter_prompt_param = ssm.StringParameter(
             self, "FilterPromptParameter",
-            parameter_name="/chatbot/prompts/filter", 
+            parameter_name=f"/chatbot/{unique_prefix.lower()}/prompts/filter", 
             string_value=document_filter_prompt
         )
         
@@ -72,6 +73,7 @@ class RagBackend(Construct):
         conversation_table = dynamodb.Table(
             self,
             "ConversationHistory",
+            table_name=f"{unique_prefix.lower()}-conversation-history",
             partition_key=dynamodb.Attribute(
                 name="session_id", type=dynamodb.AttributeType.STRING
             ),
@@ -276,7 +278,7 @@ class RagBackend(Construct):
         api_key = apigw.ApiKey(
             self,
             "RagChatbotApiKey",
-            api_key_name="RagChatAPIKey",
+            api_key_name=f"{unique_prefix}RagChatAPIKey",
             description="API key for accessing RagChatbotAPI",
         )
 
@@ -284,7 +286,7 @@ class RagBackend(Construct):
         usage_plan = apigw.UsagePlan(
             self,
             "RagChatUsagePlan",
-            name="RagChatUsagePlan",
+            name=f"{unique_prefix}RagChatUsagePlan",
             throttle=apigw.ThrottleSettings(
                 rate_limit=10,
                 burst_limit=2,
