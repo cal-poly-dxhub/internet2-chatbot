@@ -16,6 +16,121 @@ const MessageBubble = ({
   // Regex to detect [1], [2], etc.
   const placeholderRegex = /\[(\d+)\]/g;
 
+  // Function to convert title + URL patterns to clickable titles
+  const convertTitleUrlPatterns = (text) => {
+    // Multiple patterns to catch all possible title-link combinations
+    const patterns = [
+      // [Title](URL) - no space
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      // [Title] (URL) - with space
+      /\[([^\]]+)\]\s+\(([^)]+)\)/g,
+      // [Title] URL - no parentheses
+      /\[([^\]]+)\]\s+(https?:\/\/[^\s]+)/g,
+      // [Title]URL - no space, no parentheses
+      /\[([^\]]+)\](https?:\/\/[^\s]+)/g,
+      // [Title]: URL - with colon
+      /\[([^\]]+)\]:\s*(https?:\/\/[^\s]+)/g,
+      // [Title] - URL - with dash
+      /\[([^\]]+)\]\s*-\s*(https?:\/\/[^\s]+)/g
+    ];
+
+    let result = text;
+    
+    patterns.forEach((pattern, patternIndex) => {
+      const parts = [];
+      let lastIndex = 0;
+      let match;
+
+      while ((match = pattern.exec(result)) !== null) {
+        const index = match.index;
+        const title = match[1];
+        const url = match[2];
+
+        // Push plain text before the pattern
+        if (index > lastIndex) {
+          parts.push(result.slice(lastIndex, index));
+        }
+
+        // Create clickable title (hide the URL completely)
+        parts.push(
+          <a
+            key={`title-url-${patternIndex}-${index}`}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="title-link"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              window.open(url, '_blank', 'noopener,noreferrer');
+            }}
+          >
+            [{title}]
+          </a>
+        );
+
+        lastIndex = index + match[0].length;
+      }
+
+      // Push remaining text
+      if (lastIndex < result.length) {
+        parts.push(result.slice(lastIndex));
+      }
+
+      // Update result if we found matches
+      if (parts.length > 1) {
+        result = parts;
+      }
+    });
+
+    return result;
+  };
+
+  // Function to convert standalone URLs to clickable links
+  const convertUrlsToLinks = (text) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = urlRegex.exec(text)) !== null) {
+      const index = match.index;
+      const url = match[0];
+
+      // Push plain text before URL
+      if (index > lastIndex) {
+        parts.push(text.slice(lastIndex, index));
+      }
+
+      // Create clickable link
+      parts.push(
+        <a
+          key={`url-${index}`}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="url-link"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.open(url, '_blank', 'noopener,noreferrer');
+          }}
+        >
+          {url}
+        </a>
+      );
+
+      lastIndex = index + url.length;
+    }
+
+    // Push remaining text
+    if (lastIndex < text.length) {
+      parts.push(text.slice(lastIndex));
+    }
+
+    return parts.length > 1 ? parts : text;
+  };
+
   // Render inline sources where placeholders appear
   const renderWithInlineSources = (text, sources) => {
     const parts = [];
@@ -28,9 +143,10 @@ const MessageBubble = ({
 
       // Push plain text before placeholder
       if (index > lastIndex) {
+        const beforeText = text.slice(lastIndex, index);
         parts.push(
           <span key={`text-${lastIndex}`}>
-            {text.slice(lastIndex, index)}
+            {convertTitleUrlPatterns(convertUrlsToLinks(beforeText))}
           </span>
         );
       }
@@ -67,7 +183,12 @@ const MessageBubble = ({
 
     // Push remaining text
     if (lastIndex < text.length) {
-      parts.push(<span key={`text-${lastIndex}`}>{text.slice(lastIndex)}</span>);
+      const remainingText = text.slice(lastIndex);
+      parts.push(
+        <span key={`text-${lastIndex}`}>
+          {convertTitleUrlPatterns(convertUrlsToLinks(remainingText))}
+        </span>
+      );
     }
 
     return parts;
@@ -101,11 +222,16 @@ const MessageBubble = ({
                   );
                 }
                 
-                // Check if line starts with bullet point
+                // Check if line starts with bullet point or hyphen and normalize to bullet point
                 if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
+                  // Normalize hyphens to bullet points for consistent formatting
+                  const normalizedLine = line.trim().startsWith('-') 
+                    ? line.replace(/^-\s*/, '• ') 
+                    : line;
+                  
                   return (
                     <div key={index} className="response-line bullet-point">
-                      {renderWithInlineSources(line, message.sources)}
+                      {renderWithInlineSources(normalizedLine, message.sources)}
                     </div>
                   );
                 }
