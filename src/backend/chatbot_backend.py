@@ -273,9 +273,8 @@ def process_text(
    uuid_mapping: Dict[str, Dict[str, Any]],
    metadata_mapping: Dict[str, Dict[str, Any]],
 ) -> str:
-   """Replaces uuids with urls for sources using provided mappings.
-      If there is an invalid angle bracket <too short> or <too long> we simply remove them.
-
+   """Replaces uuids with numbered placeholders for sources using provided mappings.
+      The actual source data will be provided separately in the JSON response.
 
    Args:
        text (str): Input text containing UUID references in format <uuid>
@@ -285,59 +284,40 @@ def process_text(
            Format: {"uuid": {"title": str, "doc_type": str, "start_time": str,
                            "member_content_flag": str}}
 
-
    Returns:
-       Text (str): The text with uuids substituted
-
+       Text (str): The text with uuids replaced by numbered placeholders
 
    Example:
        >>> text = "This is a response with a source <sja84nak>"
        >>> uuid_mapping = {"sja84nak": {"source_url": "example.com}}
        >>> metadata_mapping = {"sja84nak": {"title": "example_website", "member_content_flag": "false"}}
        >>> print(process_text(text, uuid_mapping, metadata_mapping))
-       >>> "This is a response with a source [example_website](example.com) — _[Public]_"
+       >>> "This is a response with a source [1]"
    """
 
-
    uuid_pattern = r"<([a-f0-9]{8})>"
-
+   source_counter = 1
+   source_id_mapping = {}  # Maps UUID to source ID
 
    def replace_uuid(match: re.Match[str]) -> str:
+       nonlocal source_counter
        uuid_match = match.group(1)
        source_data = uuid_mapping.get(uuid_match)
        metadata_info = metadata_mapping.get(uuid_match)
 
-
        if source_data and metadata_info:
-           source_url = source_data["source_url"]
-           doc_type = metadata_info["doc_type"]
-           start_time = metadata_info.get("start_time")
-           is_member = metadata_info["member_content_flag"]
-           title = metadata_info["title"]
-
-
-           # Create member content badge
-           badge = "[Subscriber-only]" if is_member == "true" else "[Public]"
-
-
-           # Add timestamp for video/audio content
-           if doc_type in ["video", "podcast"] and start_time:
-               url_with_timestamp = f"{source_url}#t={start_time}"
-               return f"[{title}]({url_with_timestamp}) — _{badge}_"
-           else:
-               return f"[{title}]({source_url}) — _{badge}_"
-       return match.group(
-           0
-       )  # Return the original match if UUID not found in mappings
-
+           # Store the mapping for later use
+           source_id_mapping[uuid_match] = source_counter
+           placeholder = f"[{source_counter}]"
+           source_counter += 1
+           return placeholder
+       return match.group(0)  # Return the original match if UUID not found in mappings
 
    # Process valid UUIDs first
    text = re.sub(uuid_pattern, replace_uuid, text)
 
-
    # Then remove any remaining angle brackets and their contents
    text = re.sub(r"<[^>]*>", "", text)
-
 
    return text
 
@@ -552,7 +532,18 @@ def extract_sources_and_meetings(
     uuid_pattern = r"([a-f0-9]{8})"
     referenced_uuids = set(re.findall(uuid_pattern, text))
     
-    # Process sources
+    # Create source ID mapping (same logic as process_text)
+    source_counter = 1
+    source_id_mapping = {}
+    for uuid_match in referenced_uuids:
+        source_data = uuid_mapping.get(uuid_match)
+        metadata_info = metadata_mapping.get(uuid_match)
+        
+        if source_data and metadata_info:
+            source_id_mapping[uuid_match] = source_counter
+            source_counter += 1
+    
+    # Process sources with proper IDs
     for uuid_match in referenced_uuids:
         source_data = uuid_mapping.get(uuid_match)
         metadata_info = metadata_mapping.get(uuid_match)
@@ -563,6 +554,7 @@ def extract_sources_and_meetings(
             start_time = metadata_info.get("start_time")
             is_member = metadata_info["member_content_flag"]
             title = metadata_info["title"]
+            source_id = source_id_mapping.get(uuid_match)
             
             # Create member content badge
             badge = "[Subscriber-only]" if is_member == "true" else "[Public]"
@@ -571,6 +563,7 @@ def extract_sources_and_meetings(
             if doc_type in ["video", "podcast"] and start_time:
                 url_with_timestamp = f"{source_url}#t={start_time}"
                 source = {
+                    "id": source_id,
                     "title": title,
                     "url": url_with_timestamp,
                     "badge": badge,
@@ -579,6 +572,7 @@ def extract_sources_and_meetings(
                 }
             else:
                 source = {
+                    "id": source_id,
                     "title": title,
                     "url": source_url,
                     "badge": badge,

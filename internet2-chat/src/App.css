@@ -520,26 +520,25 @@ body {
   padding: 1px 2px;
 }
 
-/* Title links styling - clean and clickable in red theme */
+/* Title links styling - inline and subtle */
 .title-link {
   color: var(--primary) !important;
-  text-decoration: none !important;
-  font-weight: 600 !important;
+  text-decoration: underline !important;
+  font-weight: 500 !important;
   cursor: pointer;
   transition: all 0.2s ease;
-  background-color: var(--primary-light);
-  border-radius: 4px;
-  padding: 2px 4px;
-  border: 1px solid var(--primary);
+  background: none;
+  border: none;
+  padding: 0;
+  border-radius: 0;
 }
 
 .title-link:hover {
   color: var(--primary-dark) !important;
-  text-decoration: none !important;
-  background-color: rgba(220, 53, 69, 0.15);
-  border-color: var(--primary-dark);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
+  text-decoration: underline !important;
+  background-color: rgba(220, 53, 69, 0.1);
+  border-radius: 2px;
+  padding: 1px 2px;
 }
 
 /* Numbered sections styling */

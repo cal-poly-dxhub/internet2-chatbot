@@ -16,75 +16,6 @@ const MessageBubble = ({
   // Regex to detect [1], [2], etc.
   const placeholderRegex = /\[(\d+)\]/g;
 
-  // Function to convert title + URL patterns to clickable titles
-  const convertTitleUrlPatterns = (text) => {
-    // Multiple patterns to catch all possible title-link combinations
-    const patterns = [
-      // [Title](URL) - no space
-      /\[([^\]]+)\]\(([^)]+)\)/g,
-      // [Title] (URL) - with space
-      /\[([^\]]+)\]\s+\(([^)]+)\)/g,
-      // [Title] URL - no parentheses
-      /\[([^\]]+)\]\s+(https?:\/\/[^\s]+)/g,
-      // [Title]URL - no space, no parentheses
-      /\[([^\]]+)\](https?:\/\/[^\s]+)/g,
-      // [Title]: URL - with colon
-      /\[([^\]]+)\]:\s*(https?:\/\/[^\s]+)/g,
-      // [Title] - URL - with dash
-      /\[([^\]]+)\]\s*-\s*(https?:\/\/[^\s]+)/g
-    ];
-
-    let result = text;
-    
-    patterns.forEach((pattern, patternIndex) => {
-      const parts = [];
-      let lastIndex = 0;
-      let match;
-
-      while ((match = pattern.exec(result)) !== null) {
-        const index = match.index;
-        const title = match[1];
-        const url = match[2];
-
-        // Push plain text before the pattern
-        if (index > lastIndex) {
-          parts.push(result.slice(lastIndex, index));
-        }
-
-        // Create clickable title (hide the URL completely)
-        parts.push(
-          <a
-            key={`title-url-${patternIndex}-${index}`}
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="title-link"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              window.open(url, '_blank', 'noopener,noreferrer');
-            }}
-          >
-            [{title}]
-          </a>
-        );
-
-        lastIndex = index + match[0].length;
-      }
-
-      // Push remaining text
-      if (lastIndex < result.length) {
-        parts.push(result.slice(lastIndex));
-      }
-
-      // Update result if we found matches
-      if (parts.length > 1) {
-        result = parts;
-      }
-    });
-
-    return result;
-  };
 
   // Function to convert standalone URLs to clickable links
   const convertUrlsToLinks = (text) => {
@@ -131,11 +62,74 @@ const MessageBubble = ({
     return parts.length > 1 ? parts : text;
   };
 
-  // Render inline sources where placeholders appear
-  const renderWithInlineSources = (text, sources) => {
+  // Function to convert markdown-style links to clickable titles (fallback for old backend)
+  const convertMarkdownLinks = (text) => {
+    // Pattern to match [Title](URL) — _[Badge]_ format from old backend
+    const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)\s*—\s*_\[([^\]]+)\]_/g;
     const parts = [];
     let lastIndex = 0;
     let match;
+
+    while ((match = markdownLinkRegex.exec(text)) !== null) {
+      const index = match.index;
+      const title = match[1];
+      const url = match[2];
+      const badge = match[3];
+
+      // Push plain text before the pattern
+      if (index > lastIndex) {
+        parts.push(text.slice(lastIndex, index));
+      }
+
+      // Create clickable title with badge (hide the URL completely)
+      parts.push(
+        <a
+          key={`markdown-link-${index}`}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="title-link"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.open(url, '_blank', 'noopener,noreferrer');
+          }}
+        >
+          [{title}] — _[{badge}]_
+        </a>
+      );
+
+      lastIndex = index + match[0].length;
+    }
+
+    // Push remaining text
+    if (lastIndex < text.length) {
+      parts.push(text.slice(lastIndex));
+    }
+
+    return parts.length > 1 ? parts : text;
+  };
+
+  // Render inline sources where placeholders appear
+  const renderWithInlineSources = (text, sources) => {
+    // Debug logging
+    console.log('renderWithInlineSources called with:', { text, sources });
+    
+    // First try to convert any markdown links (for old backend compatibility)
+    const processedText = convertMarkdownLinks(text);
+    
+    // If we found markdown links, return them
+    if (Array.isArray(processedText)) {
+      return processedText;
+    }
+
+    // Process placeholders with JSON sources (new backend)
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    // Reset regex lastIndex to ensure it works properly
+    placeholderRegex.lastIndex = 0;
 
     while ((match = placeholderRegex.exec(text)) !== null) {
       const index = match.index;
@@ -146,13 +140,14 @@ const MessageBubble = ({
         const beforeText = text.slice(lastIndex, index);
         parts.push(
           <span key={`text-${lastIndex}`}>
-            {convertTitleUrlPatterns(convertUrlsToLinks(beforeText))}
+            {convertUrlsToLinks(beforeText)}
           </span>
         );
       }
 
       // Find matching source
       const source = sources?.find(s => s.id === placeholderId);
+      console.log(`Looking for source with id ${placeholderId}:`, source);
 
       if (source) {
         parts.push(
@@ -166,15 +161,15 @@ const MessageBubble = ({
                 e.stopPropagation();
                 window.open(source.url, '_blank', 'noopener,noreferrer');
               }}
-              className="source-link"
+              className="title-link"
             >
-              {source.title}
+              [{source.title}] — _[{source.badge}]_
             </a>
-            <span className="source-badge"> — {source.badge}</span>
           </span>
         );
       } else {
         // If no match, show raw placeholder
+        console.log(`No source found for id ${placeholderId}`);
         parts.push(<span key={`raw-${index}`}>[{placeholderId}]</span>);
       }
 
@@ -186,7 +181,7 @@ const MessageBubble = ({
       const remainingText = text.slice(lastIndex);
       parts.push(
         <span key={`text-${lastIndex}`}>
-          {convertTitleUrlPatterns(convertUrlsToLinks(remainingText))}
+          {convertUrlsToLinks(remainingText)}
         </span>
       );
     }
