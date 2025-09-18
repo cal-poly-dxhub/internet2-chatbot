@@ -1191,3 +1191,368 @@ body {
 .rail::-webkit-scrollbar-thumb:hover {
   background: var(--primary);
 }
+
+/* Enhanced MessageBubble Styles */
+
+/* Response text formatting */
+.response-text {
+  line-height: 1.6;
+  font-size: 16px;
+}
+
+/* Numbered sections (1., 2., 3., etc.) */
+.numbered-section {
+  margin: 16px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.section-number {
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 14px;
+  min-width: 20px;
+  flex-shrink: 0;
+}
+
+.section-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 16px;
+  line-height: 1.4;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Bullet points */
+.bullet-point {
+  margin: 8px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-left: 8px;
+}
+
+.bullet-mark {
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 12px;
+  min-width: 14px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.bullet-content {
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1.5;
+  flex: 1;
+}
+
+/* Content lines */
+.content-line {
+  margin: 6px 0;
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Inline links in response text */
+.inline-link {
+  color: var(--primary) !important;
+  text-decoration: none !important;
+  font-weight: 500;
+  font-size: 14px;
+  border-bottom: 1px solid transparent;
+  transition: all 0.3s ease;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  letter-spacing: -0.01em;
+  padding: 1px 2px;
+  border-radius: 3px;
+  position: relative;
+}
+
+.inline-link:hover {
+  color: var(--primary-dark) !important;
+  border-bottom-color: var(--primary);
+  text-decoration: none !important;
+  background: rgba(220, 53, 69, 0.08);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.1);
+}
+
+/* Video source styling */
+.video-source {
+  background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+  border-left: 3px solid var(--primary);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 8px 0;
+}
+
+.video-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+}
+
+.video-link:hover {
+  color: var(--primary);
+  text-decoration: none;
+  transform: translateX(2px);
+}
+
+.video-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.video-icon {
+  font-size: 16px;
+  opacity: 0.8;
+}
+
+.video-timestamp {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--accent-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* Enhanced meetings section - Clean distinct bubble */
+.meetings-container {
+  margin-top: 20px;
+  padding: 0;
+}
+
+.meetings-bubble {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border: 2px solid var(--primary);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 3px 12px rgba(220, 53, 69, 0.15);
+  position: relative;
+  margin: 0;
+  transition: all 0.3s ease;
+}
+
+.meetings-bubble:hover {
+  box-shadow: 0 4px 16px rgba(220, 53, 69, 0.18);
+  transform: translateY(-1px);
+}
+
+.meetings-bubble::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  border-radius: 14px;
+  z-index: -1;
+  opacity: 0.08;
+}
+
+.meetings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid rgba(220, 53, 69, 0.2);
+}
+
+.meetings-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.meetings-header h4 {
+  margin: 0;
+  color: var(--primary);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  text-transform: none;
+}
+
+.meetings-count {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: linear-gradient(135deg, var(--primary-light) 0%, #f5c6cb 100%);
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-weight: 600;
+  border: 1px solid rgba(220, 53, 69, 0.2);
+  transition: all 0.2s ease;
+}
+
+.meetings-bubble:hover .meetings-count {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: white;
+  transform: scale(1.05);
+}
+
+.meetings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.meeting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  border: 1px solid rgba(220, 53, 69, 0.08);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.meeting-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--primary);
+  transform: scaleY(0);
+  transition: transform 0.2s ease;
+}
+
+.meeting-item:hover {
+  background: linear-gradient(135deg, #fff5f5 0%, #ffeaea 100%);
+  border-color: var(--primary);
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.15);
+}
+
+.meeting-item:hover::before {
+  transform: scaleY(1);
+}
+
+.meeting-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: var(--text-primary);
+  font-weight: 500;
+  transition: all 0.3s ease;
+  flex: 1;
+  padding: 4px 8px;
+  gap: 10px;
+  border-radius: 6px;
+  position: relative;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.meeting-link:hover {
+  color: var(--primary);
+  text-decoration: none;
+  background: rgba(220, 53, 69, 0.05);
+  transform: translateX(2px);
+}
+
+.meeting-link::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: transparent;
+  border-radius: 1px;
+  transition: all 0.3s ease;
+}
+
+.meeting-link:hover::before {
+  background: var(--primary);
+}
+
+.meeting-icon {
+  font-size: 14px;
+  opacity: 0.6;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  filter: grayscale(0.3);
+}
+
+.meeting-item:hover .meeting-icon {
+  opacity: 1;
+  transform: scale(1.15);
+  filter: grayscale(0);
+}
+
+.meeting-name {
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  letter-spacing: -0.01em;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.meeting-item:hover .meeting-name {
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.meeting-badge {
+  font-size: 14px;
+  color: var(--primary);
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-weight: 500;
+  white-space: nowrap;
+  border: none;
+  transition: all 0.3s ease;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  letter-spacing: -0.01em;
+  box-shadow: none;
+  margin-left: 4px;
+}
+
+.meeting-item:hover .meeting-badge {
+  color: var(--primary-dark);
+  background: transparent;
+  border: none;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .meetings-bubble {
+    padding: 12px;
+  }
+  
+  .meeting-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .meeting-link {
+    width: 100%;
+  }
+  
+  .meeting-badge {
+    align-self: flex-end;
+  }
+}
